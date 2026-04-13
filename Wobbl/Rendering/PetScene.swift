@@ -26,7 +26,7 @@ final class PetScene: SKScene {
         view.allowsTransparency = true
         view.isPaused = false
 
-        let center = CGPoint(x: size.width / 2, y: size.height / 2 + 40)
+        let center = CGPoint(x: size.width / 2, y: 100)
 
         characterContainer.position = center
         addChild(characterContainer)
@@ -68,6 +68,26 @@ final class PetScene: SKScene {
 
         if isMouseTrackingEnabled {
             updateEyeTracking()
+        }
+    }
+
+    // MARK: - Walk Tilt + Eye Direction
+
+    /// Tilts the body forward in the walking direction and drifts pupils forward.
+    /// Uses bodyNode so it doesn't conflict with the characterContainer hover sway.
+    func setWalkTilt(on: Bool) {
+        bodyNode.removeAction(forKey: "walkTilt")
+        let angle: CGFloat = on ? -0.10 : 0
+        let dur: TimeInterval = on ? 0.22 : 0.35
+        let tilt = SKAction.rotate(toAngle: angle, duration: dur)
+        tilt.timingMode = .easeInEaseOut
+        bodyNode.run(tilt, withKey: "walkTilt")
+
+        if on {
+            // Pupils drift forward (+x = toward facing direction, small upward bias)
+            eyesNode.driftPupils(to: CGPoint(x: 2.8, y: 0.6), duration: 0.35)
+        } else {
+            eyesNode.returnPupilsToCenter()
         }
     }
 
@@ -191,6 +211,28 @@ final class PetScene: SKScene {
         mouthNode.setShape(.smile)
         cheeksNode.setBlushIntensity(0.3)
         eyesNode.startBlinking()
+    }
+
+    // MARK: - Idle Sleep
+
+    func startIdleSleep() {
+        isMouseTrackingEnabled = false
+        eyesNode.stopBlinking()
+        eyesNode.setExpression(.closed)
+        mouthNode.setShape(.neutral)
+        cheeksNode.setBlushIntensity(0.0)
+        limbsNode.setSleepPose()
+        effectsNode.startZZZ()
+    }
+
+    func endIdleSleep() {
+        effectsNode.stopZZZ()
+        limbsNode.setStandingPose()
+        eyesNode.setExpression(.normal)
+        eyesNode.startBlinking()
+        mouthNode.setShape(.smile)
+        cheeksNode.setBlushIntensity(0.3)
+        isMouseTrackingEnabled = true
     }
 
     // MARK: - Idle Animations

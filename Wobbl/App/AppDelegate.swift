@@ -13,6 +13,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var walkingController: WalkingController!
     private var peekabooController: PeekabooController!
     private var hoverController: HoverController!
+    private var idleSleepController: IdleSleepController!
     private var cancellables = Set<AnyCancellable>()
     private var scenePauseWatchdog: DispatchSourceTimer?
 
@@ -24,6 +25,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         setupWalking()
         setupPeekaboo()
         setupHover()
+        setupIdleSleep()
         setupMenuBar()
         preventScenePause()
     }
@@ -161,6 +163,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func setupHover() {
         hoverController = HoverController()
         hoverController.setup(window: petWindow, scene: petScene)
+    }
+
+    private func setupIdleSleep() {
+        idleSleepController = IdleSleepController()
+        idleSleepController.setup(walkingController: walkingController, scene: petScene)
+        hoverController.idleSleepController = idleSleepController
     }
 
     private func setupMenuBar() {

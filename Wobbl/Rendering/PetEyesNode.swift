@@ -117,6 +117,9 @@ final class PetEyesNode: SKNode {
     func stopBlinking() {
         blinkTimer?.invalidate()
         blinkTimer = nil
+        // Cancel any in-flight blink animation so expression changes land cleanly
+        leftSclera.removeAllActions()
+        rightSclera.removeAllActions()
     }
 
     private func scheduleBlink() {

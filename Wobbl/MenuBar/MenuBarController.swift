@@ -69,7 +69,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             // Final position: bottom-right, same as resetPosition
             let finalOrigin = CGPoint(
                 x: frame.maxX - windowWidth - 40,
-                y: frame.minY + 40
+                y: frame.minY
             )
 
             // Animate the fall
@@ -87,7 +87,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         if let window = NSApp.windows.first(where: { $0.level == .floating }) {
             let origin = CGPoint(
                 x: frame.maxX - window.frame.width - 40,
-                y: frame.minY + 40
+                y: frame.minY
             )
             window.setFrameOrigin(origin)
         }

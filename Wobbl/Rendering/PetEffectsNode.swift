@@ -3,8 +3,9 @@ import SpriteKit
 final class PetEffectsNode: SKNode {
     private var activeEmitters: [String: SKEmitterNode] = [:]
     private var activeNodes: [String: SKNode] = [:]
-    private weak var greetingBubble: SKNode?   // tracked separately — survives stopAll()
-    private weak var hoverBubble: SKNode?      // same: immune to stopAll()
+    private weak var greetingBubble: SKNode?     // tracked separately — survives stopAll()
+    private weak var hoverBubble: SKNode?        // same: immune to stopAll()
+    private weak var affirmationBubble: SKNode?  // same: immune to stopAll()
 
     func setup() {
         // Container positioned above the body center
@@ -104,7 +105,7 @@ final class PetEffectsNode: SKNode {
 
     // MARK: - Greeting Bubble
 
-    private static let greetings = ["Hi! 👋", "Hello!", "Hey!", "Heya!", "Howdy!", "Hiya! 😊", "Yo! ✌️"]
+    private static let greetings = ["Hi! 👋", "Hello!", "Hey!", "Heya!", "Howdy!", "Helloooo! 😊", "Yo! ✌️"]
 
     func showGreeting() {
         // Dismiss any existing bubble immediately
@@ -165,6 +166,91 @@ final class PetEffectsNode: SKNode {
         label.fontName = "Avenir-Heavy"
         label.fontSize = 12
         label.fontColor = ColorPalette.pupil
+        label.verticalAlignmentMode = .center
+        label.horizontalAlignmentMode = .center
+        label.position = CGPoint(x: 0, y: bh / 2)
+
+        container.addChild(tail)
+        container.addChild(body)
+        container.addChild(label)
+        return container
+    }
+
+    // MARK: - Affirmation Bubble
+
+    private static let affirmations = [
+        "You're doing great! ✨",
+        "Take a deep breath~",
+        "You've got this! 💪",
+        "You're amazing!",
+        "Keep going! 🌟",
+        "Be kind to yourself~",
+        "You matter! 💜",
+        "One step at a time~",
+        "You're not alone!",
+        "Today will be good 🌸",
+        "Proud of you! ⭐",
+        "You're enough ♡",
+        "Smile~ it helps!",
+        "You're doing okay!",
+    ]
+
+    func showAffirmation() {
+        affirmationBubble?.removeAllActions()
+        affirmationBubble?.removeFromParent()
+        affirmationBubble = nil
+
+        let text = PetEffectsNode.affirmations.randomElement() ?? "You've got this!"
+        let bubble = makeAffirmationBubble(text: text)
+        bubble.position = CGPoint(x: 0, y: 80)
+        bubble.alpha = 0
+        bubble.setScale(0.1)
+        addChild(bubble)
+        affirmationBubble = bubble
+
+        let popIn = SKAction.group([
+            SKAction.fadeIn(withDuration: 0.18),
+            SKAction.scale(to: 1.0, duration: 0.22),
+        ])
+        let hold = SKAction.wait(forDuration: 2.8)
+        let leave = SKAction.group([
+            SKAction.moveBy(x: 0, y: 10, duration: 0.6),
+            SKAction.fadeOut(withDuration: 0.6),
+        ])
+        let cleanup = SKAction.run { [weak self] in self?.affirmationBubble = nil }
+        bubble.run(.sequence([popIn, hold, leave, .removeFromParent(), cleanup]))
+    }
+
+    private func makeAffirmationBubble(text: String) -> SKNode {
+        let container = SKNode()
+
+        let bw: CGFloat = 116
+        let bh: CGFloat = 28
+        let softMint = SKColor(red: 0.82, green: 0.96, blue: 0.88, alpha: 0.95)
+
+        let bodyPath = CGPath(
+            roundedRect: CGRect(x: -bw / 2, y: 0, width: bw, height: bh),
+            cornerWidth: 9, cornerHeight: 9, transform: nil
+        )
+        let body = SKShapeNode(path: bodyPath)
+        body.fillColor = softMint
+        body.strokeColor = SKColor(red: 0.45, green: 0.75, blue: 0.60, alpha: 1.0)
+        body.lineWidth = 1.6
+
+        let tailPath = CGMutablePath()
+        tailPath.move(to: CGPoint(x: -6, y: 0))
+        tailPath.addLine(to: CGPoint(x: -14, y: -10))
+        tailPath.addLine(to: CGPoint(x: 4, y: 0))
+        tailPath.closeSubpath()
+        let tail = SKShapeNode(path: tailPath)
+        tail.fillColor = softMint
+        tail.strokeColor = SKColor(red: 0.45, green: 0.75, blue: 0.60, alpha: 1.0)
+        tail.lineWidth = 1.4
+
+        let label = SKLabelNode(text: text)
+        label.fontName = "Avenir-Heavy"
+        label.fontSize = 11
+        label.fontColor = SKColor(red: 0.15, green: 0.40, blue: 0.30, alpha: 1.0)
         label.verticalAlignmentMode = .center
         label.horizontalAlignmentMode = .center
         label.position = CGPoint(x: 0, y: bh / 2)

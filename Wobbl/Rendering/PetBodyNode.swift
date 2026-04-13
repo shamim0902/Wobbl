@@ -6,9 +6,9 @@ final class PetBodyNode: SKShapeNode {
 
     func setup() {
         path = BlobShapeGenerator.blobPath(radius: baseRadius, wobblePhase: 0)
-        fillColor = ColorPalette.normalBody.withAlphaComponent(0.25)
-        strokeColor = ColorPalette.normalStroke.withAlphaComponent(0.5)
-        lineWidth = 2.0
+        fillColor = ColorPalette.normalBody.withAlphaComponent(0.92)
+        strokeColor = ColorPalette.normalStroke.withAlphaComponent(1.0)
+        lineWidth = 2.5
         glowWidth = 0
         isAntialiased = true
     }
@@ -28,8 +28,8 @@ final class PetBodyNode: SKShapeNode {
     }
 
     func transitionColor(to color: SKColor, duration: TimeInterval = 0.5) {
-        let targetFill = color.withAlphaComponent(0.25)
-        let targetStroke = color.withAlphaComponent(0.5)
+        let targetFill = color.withAlphaComponent(0.92)
+        let targetStroke = color.withAlphaComponent(1.0)
         run(SKAction.customAction(withDuration: duration) { [weak self] _, elapsed in
             guard let self = self else { return }
             let t = elapsed / CGFloat(duration)

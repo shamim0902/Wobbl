@@ -5,6 +5,7 @@ import AppKit
 final class HoverController {
     private weak var window: NSWindow?
     private weak var scene: PetScene?
+    weak var idleSleepController: IdleSleepController?
 
     private var globalMonitor: Any?
     private var localMonitor: Any?
@@ -32,8 +33,11 @@ final class HoverController {
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
             if self.isHovered {
+                self.idleSleepController?.wakeUp()
+                NSCursor.openHand.push()
                 self.scene?.startHoverReaction()
             } else {
+                NSCursor.pop()
                 self.scene?.endHoverReaction()
             }
         }

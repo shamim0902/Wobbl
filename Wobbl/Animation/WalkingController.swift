@@ -12,7 +12,6 @@ enum PetActivity {
     case relaxedSitting
     case scratchingHead
     case lookingAround
-    case boxing
     case waving
 }
 
@@ -76,8 +75,7 @@ final class WalkingController {
         case .walking:
             scene.limbsNode.stopWalking()
             scene.bodyNode.removeAction(forKey: "walkBob")
-        case .boxing:
-            scene.limbsNode.stopBoxing()
+            scene.setWalkTilt(on: false)
         case .waving:
             scene.limbsNode.stopWave()
         case .relaxedSitting:
@@ -95,11 +93,19 @@ final class WalkingController {
             pickDirection(window: window)
             scene.limbsNode.startWalking(speed: max(walkSpeed / 1.2, 0.5))
             scene.setFacingDirection(direction)
+            scene.setWalkTilt(on: true)
             startBodyBob(scene: scene)
 
         case .standing:
             direction = .standing
             scene.limbsNode.setStandingPose()
+            // ~35% chance to show a feel-good message after settling
+            if Int.random(in: 0..<100) < 35 {
+                let delay = TimeInterval.random(in: 0.8...2.0)
+                DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak scene] in
+                    scene?.effectsNode.showAffirmation()
+                }
+            }
 
         case .sitting:
             direction = .standing
@@ -122,11 +128,13 @@ final class WalkingController {
             direction = .standing
             scene.limbsNode.setStandingPose()
             scene.eyesNode.startLookAround()
-
-        case .boxing:
-            direction = .standing
-            scene.setFacingDirection(.standing)
-            scene.limbsNode.startBoxing()
+            // ~25% chance to drop a kind word while looking around
+            if Int.random(in: 0..<100) < 25 {
+                let delay = TimeInterval.random(in: 1.5...3.5)
+                DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak scene] in
+                    scene?.effectsNode.showAffirmation()
+                }
+            }
 
         case .waving:
             direction = .standing
@@ -139,15 +147,14 @@ final class WalkingController {
     // MARK: - Activity Selection
 
     private func pickNextActivity() -> PetActivity {
-        // walk 22%, stand 12%, sit 12%, relaxedSit 14%, scratch 12%, look 10%, boxing 10%, wave 8%
+        // walk 20%, stand 12%, sit 14%, relaxedSit 18%, scratch 12%, look 14%, wave 10%
         switch Int.random(in: 0..<100) {
-        case 0..<22:  return .walking
-        case 22..<34: return .standing
-        case 34..<46: return .sitting
-        case 46..<60: return .relaxedSitting
-        case 60..<72: return .scratchingHead
-        case 72..<82: return .lookingAround
-        case 82..<92: return .boxing
+        case 0..<20:  return .walking
+        case 20..<32: return .standing
+        case 32..<46: return .sitting
+        case 46..<64: return .relaxedSitting
+        case 64..<76: return .scratchingHead
+        case 76..<90: return .lookingAround
         default:      return .waving
         }
     }
@@ -160,7 +167,6 @@ final class WalkingController {
         case .relaxedSitting: return TimeInterval.random(in: 9.0...18.0)
         case .scratchingHead: return TimeInterval.random(in: 4.0...7.0)
         case .lookingAround:  return TimeInterval.random(in: 4.0...8.0)
-        case .boxing:         return TimeInterval.random(in: 4.0...8.0)
         case .waving:         return TimeInterval.random(in: 3.0...5.0)
         }
     }
@@ -172,7 +178,6 @@ final class WalkingController {
         switch currentActivity {
         case .scratchingHead:  scene.limbsNode.stopScratch()
         case .lookingAround:   scene.eyesNode.stopLookAround()
-        case .boxing:          scene.limbsNode.stopBoxing()
         case .waving:          scene.limbsNode.stopWave()
         case .relaxedSitting:
             scene.eyesNode.setExpression(.normal)
@@ -183,6 +188,7 @@ final class WalkingController {
         direction = .standing
         scene.limbsNode.stopWalking()
         scene.bodyNode.removeAction(forKey: "walkBob")
+        scene.setWalkTilt(on: false)
         currentActivity = .standing
     }
 
