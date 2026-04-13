@@ -13,6 +13,10 @@ final class PetScene: SKScene {
     private var lastUpdateTime: TimeInterval = 0
     var isMouseTrackingEnabled = true
 
+    // Whether the pet is currently glancing at the cursor
+    private var isCursorAttentive = false
+    private var cursorAttentionWorkItem: DispatchWorkItem?
+
     /// The whole character container (body + limbs) — used for flipping direction
     private let characterContainer = SKNode()
 
@@ -20,20 +24,16 @@ final class PetScene: SKScene {
         backgroundColor = .clear
         isPaused = false
         view.allowsTransparency = true
-        // Prevent SpriteKit from auto-pausing when the accessory app loses focus
         view.isPaused = false
 
         let center = CGPoint(x: size.width / 2, y: size.height / 2 + 40)
 
-        // Character container holds everything — flip its xScale for direction
         characterContainer.position = center
         addChild(characterContainer)
 
-        // Body
         bodyNode.setup()
         characterContainer.addChild(bodyNode)
 
-        // Face features are children of body
         eyesNode.setup()
         bodyNode.addChild(eyesNode)
 
@@ -43,16 +43,15 @@ final class PetScene: SKScene {
         cheeksNode.setup()
         bodyNode.addChild(cheeksNode)
 
-        // Limbs attached to character container (not body, so they don't scale with breathing)
         limbsNode.setup()
         characterContainer.addChild(limbsNode)
 
-        // Effects float above
         effectsNode.position = .zero
         effectsNode.setup()
         characterContainer.addChild(effectsNode)
 
         startIdleAnimations()
+        scheduleCursorLook()
     }
 
     override func update(_ currentTime: TimeInterval) {
@@ -64,11 +63,9 @@ final class PetScene: SKScene {
         }
         lastUpdateTime = currentTime
 
-        // Animate wobble phase
         wobblePhase += CGFloat(dt) * 1.2
         bodyNode.updateWobble(phase: wobblePhase)
 
-        // Track mouse with eyes
         if isMouseTrackingEnabled {
             updateEyeTracking()
         }
@@ -90,9 +87,11 @@ final class PetScene: SKScene {
         }
     }
 
-    // MARK: - Mouse Tracking
+    // MARK: - Mouse Tracking (intermittent)
 
     private func updateEyeTracking() {
+        // Only track when the pet is "paying attention" to the cursor
+        guard isCursorAttentive, !eyesNode.isLookingAround else { return }
         guard let window = view?.window else { return }
 
         let screenMousePos = NSEvent.mouseLocation
@@ -101,22 +100,45 @@ final class PetScene: SKScene {
         let viewPoint = view.convert(windowRect.origin, from: nil)
         let scenePoint = convertPoint(fromView: viewPoint)
 
-        // Convert to body-node local coords (accounting for character container flip)
         let charLocal = characterContainer.convert(scenePoint, from: self)
         let bodyLocal = bodyNode.convert(charLocal, from: characterContainer)
 
         eyesNode.trackPoint(bodyLocal)
     }
 
+    // MARK: - Cursor Attention Cycle
+    // Pet glances at cursor for a few seconds, then looks away for a while
+
+    private func scheduleCursorLook() {
+        let delay = TimeInterval.random(in: 10.0...22.0)
+        let item = DispatchWorkItem { [weak self] in
+            guard let self = self else { return }
+            self.isCursorAttentive = true
+            self.scheduleCursorLookAway()
+        }
+        cursorAttentionWorkItem = item
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: item)
+    }
+
+    private func scheduleCursorLookAway() {
+        let duration = TimeInterval.random(in: 3.0...7.0)
+        let item = DispatchWorkItem { [weak self] in
+            guard let self = self else { return }
+            self.isCursorAttentive = false
+            self.eyesNode.returnPupilsToCenter()
+            self.scheduleCursorLook()
+        }
+        cursorAttentionWorkItem = item
+        DispatchQueue.main.asyncAfter(deadline: .now() + duration, execute: item)
+    }
+
     // MARK: - Idle Animations
 
     private func startIdleAnimations() {
-        // Gentle breathing
         let breatheUp = SKAction.scaleY(to: 1.03, duration: 1.25)
         breatheUp.timingMode = .easeInEaseOut
         let breatheDown = SKAction.scaleY(to: 0.97, duration: 1.25)
         breatheDown.timingMode = .easeInEaseOut
-        let breathe = SKAction.sequence([breatheUp, breatheDown])
-        bodyNode.run(.repeatForever(breathe), withKey: "breathing")
+        bodyNode.run(.repeatForever(.sequence([breatheUp, breatheDown])), withKey: "breathing")
     }
 }

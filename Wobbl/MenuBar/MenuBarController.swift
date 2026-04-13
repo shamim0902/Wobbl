@@ -11,6 +11,8 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         self.brain = brain
         super.init()
         setup()
+        // Perform initial positioning and animation after setup
+        initialPositionAndAnimation()
     }
 
     private func setup() {
@@ -48,6 +50,35 @@ final class MenuBarController: NSObject, NSMenuDelegate {
                 self?.moodMenuItem.title = "Wobbl is \(state.displayName.lowercased()) \(state.emoji)"
             }
             .store(in: &cancellables)
+    }
+
+    private func initialPositionAndAnimation() {
+        guard let screen = NSScreen.main else { return }
+        let frame = screen.visibleFrame
+        if let window = NSApp.windows.first(where: { $0.level == .floating }) {
+            let windowWidth = window.frame.width
+            let _ = window.frame.height
+
+            // Initial position: top-right, off-screen
+            let initialOrigin = CGPoint(
+                x: frame.maxX - windowWidth - 40, // 40 points from the right edge
+                y: frame.maxY // Just above the top of the screen
+            )
+            window.setFrameOrigin(initialOrigin)
+
+            // Final position: bottom-right, same as resetPosition
+            let finalOrigin = CGPoint(
+                x: frame.maxX - windowWidth - 40,
+                y: frame.minY + 40
+            )
+
+            // Animate the fall
+            NSAnimationContext.runAnimationGroup({ context in
+                context.duration = 1.0 // Duration of the fall animation
+                context.timingFunction = CAMediaTimingFunction(name: .easeIn) // Accelerate downwards
+                window.animator().setFrameOrigin(finalOrigin)
+            }, completionHandler: nil)
+        }
     }
 
     @objc private func resetPosition() {

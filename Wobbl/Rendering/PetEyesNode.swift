@@ -10,32 +10,34 @@ enum EyeExpression {
 }
 
 final class PetEyesNode: SKNode {
-    private let leftSclera = SKShapeNode(ellipseOf: CGSize(width: 22, height: 26))
-    private let rightSclera = SKShapeNode(ellipseOf: CGSize(width: 22, height: 26))
-    private let leftPupil = SKShapeNode(circleOfRadius: 7.0)
-    private let rightPupil = SKShapeNode(circleOfRadius: 7.0)
-    private let leftHighlight = SKShapeNode(circleOfRadius: 2.5)
-    private let rightHighlight = SKShapeNode(circleOfRadius: 2.5)
+    // Bigger, rounder sclera for cuter look
+    private let leftSclera = SKShapeNode(ellipseOf: CGSize(width: 24, height: 30))
+    private let rightSclera = SKShapeNode(ellipseOf: CGSize(width: 24, height: 30))
+    private let leftPupil = SKShapeNode(circleOfRadius: 9.0)
+    private let rightPupil = SKShapeNode(circleOfRadius: 9.0)
+    // Primary highlight (top-right sparkle)
+    private let leftHighlight = SKShapeNode(circleOfRadius: 3.5)
+    private let rightHighlight = SKShapeNode(circleOfRadius: 3.5)
+    // Secondary highlight (bottom-left dewiness)
+    private let leftHighlight2 = SKShapeNode(circleOfRadius: 1.8)
+    private let rightHighlight2 = SKShapeNode(circleOfRadius: 1.8)
 
-    // For spiral eyes (dizzy/vomit)
     private var leftSpiral: SKShapeNode?
     private var rightSpiral: SKShapeNode?
 
     private var blinkTimer: Timer?
     private var currentExpression: EyeExpression = .normal
+    private(set) var isLookingAround = false
 
     func setup() {
-        // Position eyes (wider apart for larger square body)
         leftSclera.position = CGPoint(x: -15, y: 8)
         rightSclera.position = CGPoint(x: 15, y: 8)
 
-        // Style sclera
         leftSclera.fillColor = ColorPalette.sclera
         leftSclera.strokeColor = .clear
         rightSclera.fillColor = ColorPalette.sclera
         rightSclera.strokeColor = .clear
 
-        // Style pupils
         leftPupil.fillColor = ColorPalette.pupil
         leftPupil.strokeColor = .clear
         leftPupil.position = CGPoint(x: 0, y: -1)
@@ -43,19 +45,26 @@ final class PetEyesNode: SKNode {
         rightPupil.strokeColor = .clear
         rightPupil.position = CGPoint(x: 0, y: -1)
 
-        // Style highlights (sparkle in eyes)
         leftHighlight.fillColor = ColorPalette.highlight
         leftHighlight.strokeColor = .clear
-        leftHighlight.position = CGPoint(x: 2.5, y: 3)
+        leftHighlight.position = CGPoint(x: 3, y: 4)
         rightHighlight.fillColor = ColorPalette.highlight
         rightHighlight.strokeColor = .clear
-        rightHighlight.position = CGPoint(x: 2.5, y: 3)
+        rightHighlight.position = CGPoint(x: 3, y: 4)
 
-        // Build hierarchy
+        leftHighlight2.fillColor = SKColor(white: 1.0, alpha: 0.65)
+        leftHighlight2.strokeColor = .clear
+        leftHighlight2.position = CGPoint(x: -3, y: -3)
+        rightHighlight2.fillColor = SKColor(white: 1.0, alpha: 0.65)
+        rightHighlight2.strokeColor = .clear
+        rightHighlight2.position = CGPoint(x: -3, y: -3)
+
         leftSclera.addChild(leftPupil)
         leftPupil.addChild(leftHighlight)
+        leftPupil.addChild(leftHighlight2)
         rightSclera.addChild(rightPupil)
         rightPupil.addChild(rightHighlight)
+        rightPupil.addChild(rightHighlight2)
 
         addChild(leftSclera)
         addChild(rightSclera)
@@ -67,19 +76,19 @@ final class PetEyesNode: SKNode {
         guard expression != currentExpression else { return }
         currentExpression = expression
 
-        // Remove spirals if switching away
         leftSpiral?.removeFromParent()
         rightSpiral?.removeFromParent()
         leftSpiral = nil
         rightSpiral = nil
 
-        // Show normal pupils
         leftPupil.isHidden = false
         rightPupil.isHidden = false
 
         switch expression {
         case .normal:
             animateScleraScale(yScale: 1.0)
+            leftPupil.run(SKAction.scale(to: 1.0, duration: 0.15))
+            rightPupil.run(SKAction.scale(to: 1.0, duration: 0.15))
         case .wide:
             animateScleraScale(yScale: 1.3)
             leftPupil.run(SKAction.scale(to: 0.7, duration: 0.15))
@@ -99,7 +108,7 @@ final class PetEyesNode: SKNode {
         }
     }
 
-    // MARK: - Blinking
+    // MARK: - Blinking (less frequent, occasionally double)
 
     func startBlinking() {
         scheduleBlink()
@@ -111,7 +120,7 @@ final class PetEyesNode: SKNode {
     }
 
     private func scheduleBlink() {
-        let interval = TimeInterval.random(in: 3.0...7.0)
+        let interval = TimeInterval.random(in: 8.0...18.0)
         blinkTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: false) { [weak self] _ in
             self?.performBlink()
         }
@@ -123,11 +132,22 @@ final class PetEyesNode: SKNode {
             return
         }
 
-        let close = SKAction.scaleY(to: 0.06, duration: 0.07)
-        let hold = SKAction.wait(forDuration: 0.10)
-        let open = SKAction.scaleY(to: 1.0, duration: 0.07)
-        let blink = SKAction.sequence([close, hold, open])
+        let isDoubleBlink = Int.random(in: 0..<4) == 0
 
+        let close = SKAction.scaleY(to: 0.06, duration: 0.08)
+        let hold = SKAction.wait(forDuration: 0.08)
+        let open = SKAction.scaleY(to: 1.0, duration: 0.12)
+        var sequence: [SKAction] = [close, hold, open]
+
+        if isDoubleBlink {
+            let halfOpen = SKAction.scaleY(to: 0.55, duration: 0.07)
+            let closeAgain = SKAction.scaleY(to: 0.06, duration: 0.06)
+            let holdAgain = SKAction.wait(forDuration: 0.06)
+            let openFinal = SKAction.scaleY(to: 1.0, duration: 0.12)
+            sequence += [halfOpen, closeAgain, holdAgain, openFinal]
+        }
+
+        let blink = SKAction.sequence(sequence)
         leftSclera.run(blink)
         rightSclera.run(blink) { [weak self] in
             self?.scheduleBlink()
@@ -136,30 +156,26 @@ final class PetEyesNode: SKNode {
 
     // MARK: - Mouse Tracking
 
-    /// Move pupils to look toward a point in the body node's coordinate space.
     func trackPoint(_ point: CGPoint) {
-        guard currentExpression == .normal || currentExpression == .wide || currentExpression == .squint else {
-            return  // Don't track during spiral/closed/xEyes
-        }
+        // Skip if another eye behavior is running
+        guard !isLookingAround else { return }
+        guard currentExpression == .normal || currentExpression == .wide || currentExpression == .squint else { return }
 
-        let maxOffset: CGFloat = 5.0  // Max pixels the pupil can move from center
-        let restY: CGFloat = -1.0     // Resting Y position of pupils
+        let maxOffset: CGFloat = 5.0
+        let restY: CGFloat = -1.0
 
-        // Calculate offset for left eye (position: x=-15, y=8)
         let toLeftEye = CGPoint(x: point.x - (-15), y: point.y - 8)
         let leftDist = sqrt(toLeftEye.x * toLeftEye.x + toLeftEye.y * toLeftEye.y)
-        let leftScale = min(leftDist / 100.0, 1.0)  // Normalize: 100pt = full offset
-        let leftOffsetX = (leftDist > 0.1) ? (toLeftEye.x / leftDist) * maxOffset * leftScale : 0
-        let leftOffsetY = (leftDist > 0.1) ? (toLeftEye.y / leftDist) * maxOffset * leftScale : 0
+        let leftScale = min(leftDist / 100.0, 1.0)
+        let leftOffsetX = leftDist > 0.1 ? (toLeftEye.x / leftDist) * maxOffset * leftScale : 0
+        let leftOffsetY = leftDist > 0.1 ? (toLeftEye.y / leftDist) * maxOffset * leftScale : 0
 
-        // Calculate offset for right eye (position: x=15, y=8)
         let toRightEye = CGPoint(x: point.x - 15, y: point.y - 8)
         let rightDist = sqrt(toRightEye.x * toRightEye.x + toRightEye.y * toRightEye.y)
         let rightScale = min(rightDist / 100.0, 1.0)
-        let rightOffsetX = (rightDist > 0.1) ? (toRightEye.x / rightDist) * maxOffset * rightScale : 0
-        let rightOffsetY = (rightDist > 0.1) ? (toRightEye.y / rightDist) * maxOffset * rightScale : 0
+        let rightOffsetX = rightDist > 0.1 ? (toRightEye.x / rightDist) * maxOffset * rightScale : 0
+        let rightOffsetY = rightDist > 0.1 ? (toRightEye.y / rightDist) * maxOffset * rightScale : 0
 
-        // Move pupils smoothly (no action — direct position for responsiveness)
         let smoothing: CGFloat = 0.25
         leftPupil.position = CGPoint(
             x: leftPupil.position.x + (leftOffsetX - leftPupil.position.x) * smoothing,
@@ -171,7 +187,53 @@ final class PetEyesNode: SKNode {
         )
     }
 
-    // MARK: - Pupil Drift (fallback when not tracking)
+    // MARK: - Look Around (idle wander)
+
+    func startLookAround() {
+        guard !isLookingAround else { return }
+        isLookingAround = true
+
+        let positions: [CGPoint] = [
+            CGPoint(x: -4, y: 1),
+            CGPoint(x: 4, y: 1),
+            CGPoint(x: 0, y: 3),
+            CGPoint(x: 3, y: -1),
+            CGPoint(x: -3, y: -1),
+            CGPoint(x: 1, y: 2),
+            CGPoint(x: 0, y: -1),
+        ]
+
+        var actions: [SKAction] = []
+        for pos in positions.shuffled() {
+            let moveDuration = TimeInterval.random(in: 0.6...1.3)
+            let holdDuration = TimeInterval.random(in: 0.5...1.4)
+            let move = SKAction.move(to: pos, duration: moveDuration)
+            move.timingMode = .easeInEaseOut
+            actions.append(move)
+            actions.append(SKAction.wait(forDuration: holdDuration))
+        }
+
+        let seq = SKAction.repeatForever(SKAction.sequence(actions))
+        leftPupil.run(seq, withKey: "lookAround")
+        rightPupil.run(seq, withKey: "lookAround")
+    }
+
+    func stopLookAround() {
+        guard isLookingAround else { return }
+        isLookingAround = false
+        leftPupil.removeAction(forKey: "lookAround")
+        rightPupil.removeAction(forKey: "lookAround")
+        returnPupilsToCenter()
+    }
+
+    func returnPupilsToCenter() {
+        let move = SKAction.move(to: CGPoint(x: 0, y: -1), duration: 0.4)
+        move.timingMode = .easeInEaseOut
+        leftPupil.run(move)
+        rightPupil.run(move)
+    }
+
+    // MARK: - Pupil Drift
 
     func driftPupils(to offset: CGPoint, duration: TimeInterval = 0.5) {
         let clampedX = max(-3, min(3, offset.x))

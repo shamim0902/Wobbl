@@ -62,10 +62,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let windowSize = CGSize(width: 200, height: 280)
         let screenFrame = NSScreen.main?.visibleFrame ?? .zero
 
-        // Start at bottom-center of screen
+        // Initial position: top-right, off-screen, to be animated by MenuBarController
         let origin = CGPoint(
-            x: screenFrame.midX - windowSize.width / 2,
-            y: screenFrame.minY
+            x: screenFrame.maxX - windowSize.width - 40, // 40 points from the right edge
+            y: screenFrame.maxY // Just above the top of the screen
         )
 
         petWindow = NSWindow(

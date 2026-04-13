@@ -292,4 +292,42 @@ final class PetLimbsNode: SKNode {
         leftElbow.run(SKAction.rotate(toAngle: 0.6, duration: 0.2))
         rightElbow.run(SKAction.rotate(toAngle: -0.6, duration: 0.2))
     }
+
+    func setSittingPose() {
+        isWalking = false
+        removeAction(forKey: "walkCycle")
+        stopJointAnimations()
+        // Legs fold forward — cross-legged sit on floor
+        leftHip.run(SKAction.rotate(toAngle: 1.2, duration: 0.45))
+        rightHip.run(SKAction.rotate(toAngle: -1.2, duration: 0.45))
+        leftKnee.run(SKAction.rotate(toAngle: -1.3, duration: 0.35))
+        rightKnee.run(SKAction.rotate(toAngle: 1.3, duration: 0.35))
+        // Arms rest relaxed inward
+        leftShoulder.run(SKAction.rotate(toAngle: 0.5, duration: 0.4))
+        rightShoulder.run(SKAction.rotate(toAngle: -0.5, duration: 0.4))
+        leftElbow.run(SKAction.rotate(toAngle: 0.3, duration: 0.3))
+        rightElbow.run(SKAction.rotate(toAngle: -0.3, duration: 0.3))
+    }
+
+    func startScratch() {
+        isWalking = false
+        removeAction(forKey: "walkCycle")
+        stopJointAnimations()
+        // Left arm hangs at rest
+        leftShoulder.run(SKAction.rotate(toAngle: 0.15, duration: 0.3))
+        leftElbow.run(SKAction.rotate(toAngle: 0, duration: 0.25))
+        // Right arm raises up toward head
+        rightShoulder.run(SKAction.rotate(toAngle: -2.0, duration: 0.3))
+        rightElbow.run(SKAction.rotate(toAngle: 1.4, duration: 0.25)) { [weak self] in
+            let scratch = SKAction.sequence([
+                SKAction.rotate(toAngle: 1.1, duration: 0.1),
+                SKAction.rotate(toAngle: 1.7, duration: 0.1),
+            ])
+            self?.rightElbow.run(.repeatForever(scratch), withKey: "scratch")
+        }
+    }
+
+    func stopScratch() {
+        rightElbow.removeAction(forKey: "scratch")
+    }
 }
