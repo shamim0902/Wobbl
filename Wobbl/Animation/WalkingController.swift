@@ -14,6 +14,11 @@ enum PetActivity {
     case lookingAround
     case waving
     case surfing
+    case excited
+    case shy
+    case curious
+    case yawning
+    case sneezing
 }
 
 /// Drives all of Wobbl's idle behaviour — walking, sitting, scratching, and looking around.
@@ -86,6 +91,27 @@ final class WalkingController {
         case .relaxedSitting:
             scene.eyesNode.setExpression(.normal)
             scene.mouthNode.setShape(.neutral)
+        case .excited:
+            scene.limbsNode.stopExcited()
+            scene.eyesNode.setExpression(.normal)
+            scene.mouthNode.setShape(.smile)
+        case .shy:
+            scene.limbsNode.stopShy()
+            scene.eyesNode.setExpression(.normal)
+            scene.cheeksNode.setBlushIntensity(0.3)
+        case .curious:
+            scene.bodyNode.run(SKAction.easedRotate(toAngle: 0, duration: 0.3, easing: Easing.easeOutBack))
+            scene.eyesNode.setExpression(.normal)
+            scene.eyesNode.returnPupilsToCenter()
+        case .sneezing:
+            scene.bodyNode.run(SKAction.rotate(toAngle: 0, duration: 0.2))
+            scene.eyesNode.setExpression(.normal)
+            scene.eyesNode.startBlinking()
+        case .yawning:
+            scene.limbsNode.removeAction(forKey: "yawnSequence")
+            scene.eyesNode.setExpression(.normal)
+            scene.eyesNode.startBlinking()
+            scene.mouthNode.setShape(.smile)
         default:
             break
         }
@@ -153,22 +179,95 @@ final class WalkingController {
             scene.setFacingDirection(direction)
             scene.setWalkTilt(on: true)
             startSurfBob(scene: scene)
+
+        case .excited:
+            direction = .standing
+            scene.setFacingDirection(.standing)
+            scene.limbsNode.setExcitedPose()
+            scene.eyesNode.setExpression(.wide)
+            scene.mouthNode.setShape(.bigSmile)
+            scene.cheeksNode.setBlushIntensity(0.7)
+            scene.effectsNode.showSparkles()
+            // Spring bounce on body
+            scene.bodySquishSpring.value = 0.85
+            scene.bodySquishSpring.velocity = 5.0
+            scene.bodySquishSpring.target = 1.0
+
+        case .shy:
+            direction = .standing
+            scene.setFacingDirection(.standing)
+            scene.limbsNode.setShyPose()
+            scene.eyesNode.setExpression(.squint)
+            scene.mouthNode.setShape(.openSmall)
+            scene.cheeksNode.setBlushIntensity(0.9)
+
+        case .curious:
+            direction = .standing
+            scene.setFacingDirection(.standing)
+            scene.limbsNode.setCuriousPose()
+            scene.eyesNode.setExpression(.wide)
+            scene.mouthNode.setShape(.openSmall)
+            scene.eyesNode.driftPupils(to: CGPoint(x: 3, y: 1), duration: 0.5)
+            scene.bodyNode.run(SKAction.easedRotate(toAngle: 0.18, duration: 0.5, easing: { Easing.spring($0, damping: 0.5) }))
+            scene.effectsNode.showQuestionBubble()
+
+        case .yawning:
+            direction = .standing
+            scene.setFacingDirection(.standing)
+            scene.eyesNode.setExpression(.squint)
+            scene.mouthNode.setShape(.yawn)
+            scene.limbsNode.setYawnPose { [weak scene] in
+                scene?.eyesNode.setExpression(.normal)
+                scene?.eyesNode.startBlinking()
+                scene?.mouthNode.setShape(.smile)
+            }
+
+        case .sneezing:
+            direction = .standing
+            scene.setFacingDirection(.standing)
+            scene.limbsNode.setSneezePose()
+            scene.eyesNode.setExpression(.squint)
+            scene.mouthNode.setShape(.neutral)
+            // Build-up → sneeze after 0.5s
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak scene] in
+                guard let scene = scene else { return }
+                scene.bodyNode.run(SKAction.easedRotate(toAngle: 0.15, duration: 0.1, easing: Easing.easeOutElastic))
+                scene.bodySquishSpring.value = 0.85
+                scene.bodySquishSpring.velocity = 6.0
+                scene.bodySquishSpring.target = 1.0
+                scene.eyesNode.setExpression(.closed)
+                scene.mouthNode.setShape(.openWide)
+                scene.effectsNode.showSneezeBurst()
+                // Recovery
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak scene] in
+                    scene?.bodyNode.run(SKAction.easedRotate(toAngle: 0, duration: 0.4, easing: { Easing.spring($0, damping: 0.5) }))
+                    scene?.eyesNode.setExpression(.normal)
+                    scene?.eyesNode.startBlinking()
+                    scene?.mouthNode.setShape(.smile)
+                }
+            }
         }
     }
 
     // MARK: - Activity Selection
 
     private func pickNextActivity() -> PetActivity {
-        // walk 15%, stand 10%, sit 10%, relaxedSit 15%, scratch 10%, look 10%, wave 10%, surf 20%
+        // walk 12%, stand 8%, sit 8%, relaxedSit 10%, scratch 8%, look 8%,
+        // wave 8%, surf 15%, excited 5%, shy 4%, curious 5%, yawn 4%, sneeze 5%
         switch Int.random(in: 0..<100) {
-        case 0..<15:  return .walking
-        case 15..<25: return .standing
-        case 25..<35: return .sitting
-        case 35..<50: return .relaxedSitting
-        case 50..<60: return .scratchingHead
-        case 60..<70: return .lookingAround
-        case 70..<80: return .waving
-        default:      return .surfing
+        case 0..<12:  return .walking
+        case 12..<20: return .standing
+        case 20..<28: return .sitting
+        case 28..<38: return .relaxedSitting
+        case 38..<46: return .scratchingHead
+        case 46..<54: return .lookingAround
+        case 54..<62: return .waving
+        case 62..<77: return .surfing
+        case 77..<82: return .excited
+        case 82..<86: return .shy
+        case 86..<91: return .curious
+        case 91..<95: return .yawning
+        default:      return .sneezing
         }
     }
 
@@ -182,6 +281,11 @@ final class WalkingController {
         case .lookingAround:  return TimeInterval.random(in: 4.0...8.0)
         case .waving:         return TimeInterval.random(in: 3.0...5.0)
         case .surfing:        return TimeInterval.random(in: 5.0...10.0)
+        case .excited:        return TimeInterval.random(in: 3.0...5.0)
+        case .shy:            return TimeInterval.random(in: 4.0...7.0)
+        case .curious:        return TimeInterval.random(in: 3.0...6.0)
+        case .yawning:        return TimeInterval.random(in: 4.0...5.5)
+        case .sneezing:       return TimeInterval.random(in: 2.0...3.0)
         }
     }
 
@@ -194,6 +298,15 @@ final class WalkingController {
         case .lookingAround:   scene.eyesNode.stopLookAround()
         case .waving:          scene.limbsNode.stopWave()
         case .surfing:         scene.limbsNode.stopSurfing()
+        case .excited:         scene.limbsNode.stopExcited()
+        case .shy:             scene.limbsNode.stopShy()
+        case .curious:
+            scene.bodyNode.run(SKAction.rotate(toAngle: 0, duration: 0.2))
+            scene.eyesNode.returnPupilsToCenter()
+        case .yawning:
+            scene.limbsNode.removeAction(forKey: "yawnSequence")
+        case .sneezing:
+            scene.bodyNode.run(SKAction.rotate(toAngle: 0, duration: 0.2))
         case .relaxedSitting:
             scene.eyesNode.setExpression(.normal)
             scene.mouthNode.setShape(.neutral)

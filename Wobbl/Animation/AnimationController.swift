@@ -216,13 +216,10 @@ final class AnimationController {
 
         scene.limbsNode.setScaredPose()
 
-        // Quick squish then spring back
-        let squish = SKAction.sequence([
-            SKAction.scaleY(to: 0.7, duration: 0.08),
-            SKAction.scaleY(to: 1.15, duration: 0.12),
-            SKAction.scaleY(to: 1.0, duration: 0.15),
-        ])
-        scene.bodyNode.run(squish)
+        // Spring-driven squish — punchy compression with natural bounce-back
+        scene.bodySquishSpring.value = 0.7
+        scene.bodySquishSpring.velocity = 5.0
+        scene.bodySquishSpring.target = 1.0
 
         // Trembling
         let tremble = SKAction.sequence([

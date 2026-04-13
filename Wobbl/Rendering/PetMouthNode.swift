@@ -2,10 +2,12 @@ import SpriteKit
 
 enum MouthShape {
     case smile
+    case bigSmile    // excited
     case neutral
     case frown
     case openSmall   // surprise
-    case openWide    // vomit/yawn
+    case openWide    // vomit
+    case yawn        // tall oval for yawning
     case wavy        // sick/nauseous
     case pant        // hot - alternating open/close
 }
@@ -50,6 +52,10 @@ final class PetMouthNode: SKShapeNode {
             p.move(to: CGPoint(x: -9, y: 0))
             p.addQuadCurve(to: CGPoint(x: 9, y: 0), control: CGPoint(x: 0, y: -8))
 
+        case .bigSmile:
+            p.move(to: CGPoint(x: -11, y: 1))
+            p.addQuadCurve(to: CGPoint(x: 11, y: 1), control: CGPoint(x: 0, y: -12))
+
         case .neutral:
             p.move(to: CGPoint(x: -7, y: 0))
             p.addLine(to: CGPoint(x: 7, y: 0))
@@ -63,6 +69,9 @@ final class PetMouthNode: SKShapeNode {
 
         case .openWide:
             p.addEllipse(in: CGRect(x: -8, y: -6, width: 16, height: 12))
+
+        case .yawn:
+            p.addEllipse(in: CGRect(x: -7, y: -8, width: 14, height: 16))
 
         case .wavy:
             p.move(to: CGPoint(x: -10, y: 0))
@@ -81,7 +90,7 @@ final class PetMouthNode: SKShapeNode {
 
     private func fillColorFor(_ shape: MouthShape) -> SKColor {
         switch shape {
-        case .openSmall, .openWide, .pant:
+        case .openSmall, .openWide, .yawn, .pant:
             return ColorPalette.mouth
         default:
             return .clear

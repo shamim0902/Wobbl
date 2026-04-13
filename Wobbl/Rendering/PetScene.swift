@@ -13,6 +13,9 @@ final class PetScene: SKScene {
     private var lastUpdateTime: TimeInterval = 0
     var isMouseTrackingEnabled = true
 
+    /// Spring-driven body squish — replaces hardcoded squish keyframes
+    var bodySquishSpring = SpringState(value: 1.0, target: 1.0)
+
     // Whether the pet is currently glancing at the cursor
     private var isCursorAttentive = false
     private var cursorAttentionWorkItem: DispatchWorkItem?
@@ -65,6 +68,12 @@ final class PetScene: SKScene {
 
         wobblePhase += CGFloat(dt) * 1.2
         bodyNode.updateWobble(phase: wobblePhase)
+
+        // Per-frame spring physics for body squish
+        if !bodySquishSpring.isSettled {
+            bodySquishSpring.step(dt: CGFloat(dt))
+            bodyNode.yScale = bodySquishSpring.value
+        }
 
         if isMouseTrackingEnabled {
             updateEyeTracking()
@@ -165,12 +174,10 @@ final class PetScene: SKScene {
         mouthNode.setShape(.openSmall)
         cheeksNode.setBlushIntensity(1.0)
 
-        let squish = SKAction.sequence([
-            SKAction.scaleY(to: 0.78, duration: 0.07),
-            SKAction.scaleY(to: 1.18, duration: 0.11),
-            SKAction.scaleY(to: 1.0, duration: 0.10),
-        ])
-        bodyNode.run(squish)
+        // Spring-driven squish — natural overshoot and settle
+        bodySquishSpring.value = 0.78
+        bodySquishSpring.velocity = 4.0   // upward kick for bounce
+        bodySquishSpring.target = 1.0
 
         // Show hover bubble
         effectsNode.showHoverBubble()

@@ -197,32 +197,77 @@ final class PetLimbsNode: SKNode {
         removeAction(forKey: "walkCycle")
         stopJointAnimations()
 
-        leftShoulder.run(SKAction.rotate(toAngle: 0.15, duration: 0.55))
-        rightShoulder.run(SKAction.rotate(toAngle: -0.15, duration: 0.55))
-        leftElbow.run(SKAction.rotate(toAngle: 0, duration: 0.45))
-        rightElbow.run(SKAction.rotate(toAngle: 0, duration: 0.45))
+        // Spring-eased arm settle
+        leftShoulder.run(SKAction.easedRotate(toAngle: 0.15, duration: 0.55, easing: { Easing.spring($0, damping: 0.5) }))
+        rightShoulder.run(SKAction.easedRotate(toAngle: -0.15, duration: 0.55, easing: { Easing.spring($0, damping: 0.5) }))
+        leftElbow.run(SKAction.easedRotate(toAngle: 0, duration: 0.45, easing: Easing.easeOutBack))
+        rightElbow.run(SKAction.easedRotate(toAngle: 0, duration: 0.45, easing: Easing.easeOutBack))
 
-        leftHip.run(SKAction.rotate(toAngle: 0, duration: 0.6))
-        rightHip.run(SKAction.rotate(toAngle: 0, duration: 0.6))
-        leftKnee.run(SKAction.rotate(toAngle: 0, duration: 0.45))
-        rightKnee.run(SKAction.rotate(toAngle: 0, duration: 0.45))
+        leftHip.run(SKAction.easedRotate(toAngle: 0, duration: 0.6, easing: { Easing.spring($0, damping: 0.5) }))
+        rightHip.run(SKAction.easedRotate(toAngle: 0, duration: 0.6, easing: { Easing.spring($0, damping: 0.5) }))
+        leftKnee.run(SKAction.easedRotate(toAngle: 0, duration: 0.45, easing: Easing.easeOutBack))
+        rightKnee.run(SKAction.easedRotate(toAngle: 0, duration: 0.45, easing: Easing.easeOutBack))
+        leftAnkle.run(SKAction.easedRotate(toAngle: 0, duration: 0.4, easing: Easing.easeOutBack))
+        rightAnkle.run(SKAction.easedRotate(toAngle: 0, duration: 0.4, easing: Easing.easeOutBack))
 
-        // Gentle arm sway once joints settle
+        // Gentle arm sway + weight shift once joints settle
         let swayItem = DispatchWorkItem { [weak self] in
             guard let self = self else { return }
+            // Arm sway synced to breathing harmonic (2.5s)
             let swayL = SKAction.sequence([
-                SKAction.rotate(toAngle: 0.20, duration: 2.8),
-                SKAction.rotate(toAngle: 0.10, duration: 2.8),
+                SKAction.rotate(toAngle: 0.20, duration: 2.5),
+                SKAction.rotate(toAngle: 0.10, duration: 2.5),
             ])
             let swayR = SKAction.sequence([
-                SKAction.rotate(toAngle: -0.20, duration: 2.8),
-                SKAction.rotate(toAngle: -0.10, duration: 2.8),
+                SKAction.rotate(toAngle: -0.20, duration: 2.5),
+                SKAction.rotate(toAngle: -0.10, duration: 2.5),
             ])
+            swayL.timingMode = .easeInEaseOut
+            swayR.timingMode = .easeInEaseOut
             self.leftShoulder.run(.repeatForever(swayL), withKey: "idleSway")
             self.rightShoulder.run(.repeatForever(swayR), withKey: "idleSway")
+
+            // Subtle weight shift — slow alternating hip lean
+            let weightL = SKAction.sequence([
+                SKAction.rotate(toAngle:  0.06, duration: 3.5),
+                SKAction.rotate(toAngle: -0.02, duration: 3.5),
+            ])
+            let weightR = SKAction.sequence([
+                SKAction.rotate(toAngle: -0.06, duration: 3.5),
+                SKAction.rotate(toAngle:  0.02, duration: 3.5),
+            ])
+            weightL.timingMode = .easeInEaseOut
+            weightR.timingMode = .easeInEaseOut
+            self.leftHip.run(.repeatForever(weightL), withKey: "idleSway")
+            self.rightHip.run(.repeatForever(weightR), withKey: "idleSway")
+
+            // Occasional hand fidget
+            self.scheduleHandFidget()
         }
         idleSwayWorkItem = swayItem
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4, execute: swayItem)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: swayItem)
+    }
+
+    private var fidgetWorkItem: DispatchWorkItem?
+
+    private func scheduleHandFidget() {
+        fidgetWorkItem?.cancel()
+        let item = DispatchWorkItem { [weak self] in
+            guard let self = self else { return }
+            let wrist = Bool.random() ? self.leftWrist : self.rightWrist
+            let angle: CGFloat = Bool.random() ? 0.3 : -0.3
+            wrist.run(.sequence([
+                SKAction.easedRotate(toAngle: angle, duration: 0.35, easing: Easing.easeOutBack),
+                SKAction.wait(forDuration: 0.2),
+                SKAction.easedRotate(toAngle: 0, duration: 0.4, easing: Easing.easeOutBack),
+            ]), withKey: "fidget")
+            self.scheduleHandFidget()
+        }
+        fidgetWorkItem = item
+        DispatchQueue.main.asyncAfter(
+            deadline: .now() + TimeInterval.random(in: 10.0...20.0),
+            execute: item
+        )
     }
 
     // MARK: - Walking
@@ -251,29 +296,35 @@ final class PetLimbsNode: SKNode {
         let armBack: CGFloat = -0.22   // gentle backward swing
         let elbowFwd: CGFloat = 0.18   // mild elbow bend coming forward
         let elbowBack: CGFloat = 0.05  // nearly straight going back
+        let ankleFwd: CGFloat = -0.30  // ankle counter-rotates to keep foot flat
+        let ankleBack: CGFloat = 0.18
 
         // Step 1: left leg forward, right leg back
         let step1 = SKAction.group([
-            makeSwing(node: leftHip,       to: legFwd,   duration: stepDuration),
-            makeSwing(node: rightHip,      to: legBack,  duration: stepDuration),
-            makeSwing(node: leftKnee,      to: kneeUp,   duration: stepDuration),
-            makeSwing(node: rightKnee,     to: kneePush, duration: stepDuration),
-            makeSwing(node: leftShoulder,  to: armBack,  duration: stepDuration),
-            makeSwing(node: rightShoulder, to: armFwd,   duration: stepDuration),
-            makeSwing(node: leftElbow,     to: elbowBack,duration: stepDuration),
-            makeSwing(node: rightElbow,    to: -elbowFwd,duration: stepDuration),
+            makeSwing(node: leftHip,       to: legFwd,    duration: stepDuration),
+            makeSwing(node: rightHip,      to: legBack,   duration: stepDuration),
+            makeSwing(node: leftKnee,      to: kneeUp,    duration: stepDuration),
+            makeSwing(node: rightKnee,     to: kneePush,  duration: stepDuration),
+            makeSwing(node: leftAnkle,     to: ankleFwd,  duration: stepDuration),
+            makeSwing(node: rightAnkle,    to: ankleBack, duration: stepDuration),
+            makeSwing(node: leftShoulder,  to: armBack,   duration: stepDuration),
+            makeSwing(node: rightShoulder, to: armFwd,    duration: stepDuration),
+            makeSwing(node: leftElbow,     to: elbowBack, duration: stepDuration),
+            makeSwing(node: rightElbow,    to: -elbowFwd, duration: stepDuration),
         ])
 
         // Step 2: right leg forward, left leg back
         let step2 = SKAction.group([
-            makeSwing(node: rightHip,      to: legFwd,   duration: stepDuration),
-            makeSwing(node: leftHip,       to: legBack,  duration: stepDuration),
-            makeSwing(node: rightKnee,     to: kneeUp,   duration: stepDuration),
-            makeSwing(node: leftKnee,      to: kneePush, duration: stepDuration),
-            makeSwing(node: rightShoulder, to: armBack,  duration: stepDuration),
-            makeSwing(node: leftShoulder,  to: armFwd,   duration: stepDuration),
-            makeSwing(node: rightElbow,    to: elbowBack,duration: stepDuration),
-            makeSwing(node: leftElbow,     to: -elbowFwd,duration: stepDuration),
+            makeSwing(node: rightHip,      to: legFwd,    duration: stepDuration),
+            makeSwing(node: leftHip,       to: legBack,   duration: stepDuration),
+            makeSwing(node: rightKnee,     to: kneeUp,    duration: stepDuration),
+            makeSwing(node: leftKnee,      to: kneePush,  duration: stepDuration),
+            makeSwing(node: rightAnkle,    to: ankleFwd,  duration: stepDuration),
+            makeSwing(node: leftAnkle,     to: ankleBack, duration: stepDuration),
+            makeSwing(node: rightShoulder, to: armBack,   duration: stepDuration),
+            makeSwing(node: leftShoulder,  to: armFwd,    duration: stepDuration),
+            makeSwing(node: rightElbow,    to: elbowBack, duration: stepDuration),
+            makeSwing(node: leftElbow,     to: -elbowFwd, duration: stepDuration),
         ])
 
         run(.repeatForever(.sequence([step1, step2])), withKey: "walkCycle")
@@ -282,9 +333,10 @@ final class PetLimbsNode: SKNode {
     private func makeSwing(node: SKNode, to angle: CGFloat, duration: TimeInterval) -> SKAction {
         SKAction.sequence([
             SKAction.run {
-                let action = SKAction.rotate(toAngle: angle, duration: duration)
-                action.timingMode = .easeInEaseOut
-                node.run(action, withKey: "swing")
+                node.run(
+                    SKAction.easedRotate(toAngle: angle, duration: duration, easing: Easing.easeOutBack),
+                    withKey: "swing"
+                )
             },
             SKAction.wait(forDuration: duration)
         ])
@@ -295,6 +347,8 @@ final class PetLimbsNode: SKNode {
         idleSwayWorkItem = nil
         boxingComboWorkItem?.cancel()
         boxingComboWorkItem = nil
+        fidgetWorkItem?.cancel()
+        fidgetWorkItem = nil
         for joint in [leftShoulder, rightShoulder, leftHip, rightHip,
                       leftKnee, rightKnee, leftElbow, rightElbow,
                       leftAnkle, rightAnkle, leftWrist, rightWrist] {
@@ -528,5 +582,123 @@ final class PetLimbsNode: SKNode {
             joint.removeAction(forKey: "swingRS")
             joint.removeAction(forKey: "swingRE")
         }
+    }
+
+    // MARK: - Excited Bounce
+
+    func setExcitedPose() {
+        isWalking = false
+        removeAction(forKey: "walkCycle")
+        stopJointAnimations()
+
+        // Arms raised, elbows bent inward — "yay!" pose
+        leftShoulder.run(SKAction.easedRotate(toAngle: -2.0, duration: 0.35, easing: Easing.easeOutBack))
+        rightShoulder.run(SKAction.easedRotate(toAngle: 2.0, duration: 0.35, easing: Easing.easeOutBack))
+        leftElbow.run(SKAction.rotate(toAngle: -0.7, duration: 0.3))
+        rightElbow.run(SKAction.rotate(toAngle: 0.7, duration: 0.3))
+
+        // Excited bounce on hips
+        let bounceL = SKAction.sequence([
+            SKAction.rotate(toAngle: 0.08, duration: 0.22),
+            SKAction.rotate(toAngle: -0.04, duration: 0.22),
+        ])
+        let bounceR = SKAction.sequence([
+            SKAction.rotate(toAngle: -0.08, duration: 0.22),
+            SKAction.rotate(toAngle: 0.04, duration: 0.22),
+        ])
+        bounceL.timingMode = .easeInEaseOut
+        bounceR.timingMode = .easeInEaseOut
+        leftHip.run(.repeatForever(bounceL), withKey: "excitedBounce")
+        rightHip.run(.repeatForever(bounceR), withKey: "excitedBounce")
+    }
+
+    func stopExcited() {
+        leftHip.removeAction(forKey: "excitedBounce")
+        rightHip.removeAction(forKey: "excitedBounce")
+    }
+
+    // MARK: - Shy Peek
+
+    private var shyPeekWorkItem: DispatchWorkItem?
+
+    func setShyPose() {
+        isWalking = false
+        removeAction(forKey: "walkCycle")
+        stopJointAnimations()
+
+        // Both arms cover face
+        leftShoulder.run(SKAction.rotate(toAngle: -1.7, duration: 0.35))
+        rightShoulder.run(SKAction.rotate(toAngle: 1.7, duration: 0.35))
+        leftElbow.run(SKAction.rotate(toAngle: -1.3, duration: 0.3))
+        rightElbow.run(SKAction.rotate(toAngle: 1.3, duration: 0.3))
+
+        // After 1.5s, one arm lowers to peek
+        let peekItem = DispatchWorkItem { [weak self] in
+            guard let self = self else { return }
+            self.rightShoulder.run(SKAction.easedRotate(toAngle: 0.8, duration: 0.5, easing: Easing.easeOutBack))
+            self.rightElbow.run(SKAction.rotate(toAngle: 0.4, duration: 0.4))
+        }
+        shyPeekWorkItem = peekItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5, execute: peekItem)
+    }
+
+    func stopShy() {
+        shyPeekWorkItem?.cancel()
+        shyPeekWorkItem = nil
+    }
+
+    // MARK: - Curious Tilt
+
+    func setCuriousPose() {
+        isWalking = false
+        removeAction(forKey: "walkCycle")
+        stopJointAnimations()
+
+        // One arm raised (thinking)
+        rightShoulder.run(SKAction.easedRotate(toAngle: -1.2, duration: 0.4, easing: Easing.easeOutBack))
+        rightElbow.run(SKAction.rotate(toAngle: 1.0, duration: 0.35))
+        leftShoulder.run(SKAction.rotate(toAngle: 0.15, duration: 0.4))
+        leftElbow.run(SKAction.rotate(toAngle: 0, duration: 0.3))
+    }
+
+    // MARK: - Yawn + Stretch
+
+    func setYawnPose(completion: (() -> Void)? = nil) {
+        isWalking = false
+        removeAction(forKey: "walkCycle")
+        stopJointAnimations()
+
+        // Arms stretch fully upward
+        leftShoulder.run(SKAction.easedRotate(toAngle: -2.6, duration: 0.6, easing: Easing.easeInOutCubic))
+        rightShoulder.run(SKAction.easedRotate(toAngle: 2.6, duration: 0.6, easing: Easing.easeInOutCubic))
+        leftElbow.run(SKAction.rotate(toAngle: -0.1, duration: 0.5))
+        rightElbow.run(SKAction.rotate(toAngle: 0.1, duration: 0.5))
+
+        // Hold 1.5s then lower
+        run(.sequence([
+            SKAction.wait(forDuration: 2.2),
+            SKAction.run { [weak self] in
+                self?.leftShoulder.run(SKAction.easedRotate(toAngle: 0.15, duration: 0.6, easing: { Easing.spring($0, damping: 0.5) }))
+                self?.rightShoulder.run(SKAction.easedRotate(toAngle: -0.15, duration: 0.6, easing: { Easing.spring($0, damping: 0.5) }))
+                self?.leftElbow.run(SKAction.rotate(toAngle: 0, duration: 0.4))
+                self?.rightElbow.run(SKAction.rotate(toAngle: 0, duration: 0.4))
+            },
+            SKAction.wait(forDuration: 0.7),
+            SKAction.run { completion?() },
+        ]), withKey: "yawnSequence")
+    }
+
+    // MARK: - Sneeze
+
+    func setSneezePose() {
+        isWalking = false
+        removeAction(forKey: "walkCycle")
+        stopJointAnimations()
+
+        // Arms slightly forward bracing
+        leftShoulder.run(SKAction.rotate(toAngle: 0.4, duration: 0.3))
+        rightShoulder.run(SKAction.rotate(toAngle: -0.4, duration: 0.3))
+        leftElbow.run(SKAction.rotate(toAngle: 0.3, duration: 0.25))
+        rightElbow.run(SKAction.rotate(toAngle: -0.3, duration: 0.25))
     }
 }

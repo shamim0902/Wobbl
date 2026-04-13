@@ -50,7 +50,13 @@ final class IdleSleepController {
         }
         isIdleSleeping = true
         wc.pause()
-        scene.startIdleSleep()
+        // Yawn before sleeping
+        scene.eyesNode.setExpression(.squint)
+        scene.mouthNode.setShape(.yawn)
+        scene.limbsNode.setYawnPose { [weak self] in
+            guard let self = self, self.isIdleSleeping else { return }
+            self.scene?.startIdleSleep()
+        }
         scheduleAutoWake()
     }
 
@@ -70,7 +76,15 @@ final class IdleSleepController {
         guard isIdleSleeping, let scene = scene else { return }
         isIdleSleeping = false
         scene.endIdleSleep()
-        walkingController?.resume()
+        // Short stretch on waking
+        scene.eyesNode.setExpression(.squint)
+        scene.mouthNode.setShape(.yawn)
+        scene.limbsNode.setYawnPose { [weak self] in
+            self?.scene?.eyesNode.setExpression(.normal)
+            self?.scene?.eyesNode.startBlinking()
+            self?.scene?.mouthNode.setShape(.smile)
+            self?.walkingController?.resume()
+        }
         resetSleepTimer()
     }
 

@@ -103,6 +103,72 @@ final class PetEffectsNode: SKNode {
         activeNodes["stars"] = nil
     }
 
+    // MARK: - Sparkle Burst (excited)
+
+    func showSparkles() {
+        for i in 0..<5 {
+            let star = createStarShape(size: CGFloat.random(in: 3...6))
+            let angle = CGFloat(i) / 5 * 2 * .pi + CGFloat.random(in: -0.3...0.3)
+            let dist: CGFloat = CGFloat.random(in: 20...40)
+            star.position = CGPoint(x: 0, y: 30)
+            star.alpha = 0
+            star.setScale(0.1)
+            addChild(star)
+
+            let move = SKAction.moveBy(x: cos(angle) * dist, y: sin(angle) * dist + 15, duration: 0.6)
+            let fade = SKAction.sequence([
+                SKAction.fadeIn(withDuration: 0.1),
+                SKAction.wait(forDuration: 0.3),
+                SKAction.fadeOut(withDuration: 0.2),
+            ])
+            let scale = SKAction.easedScale(to: 1.0, duration: 0.35, easing: Easing.easeOutBack)
+            star.run(.sequence([
+                .group([move, fade, scale]),
+                .removeFromParent(),
+            ]))
+        }
+    }
+
+    // MARK: - Sneeze Burst
+
+    func showSneezeBurst() {
+        for _ in 0..<4 {
+            let dot = SKShapeNode(circleOfRadius: CGFloat.random(in: 2...4))
+            dot.fillColor = SKColor(white: 0.9, alpha: 0.8)
+            dot.strokeColor = .clear
+            dot.position = CGPoint(x: 0, y: -10)
+            addChild(dot)
+
+            let dx = CGFloat.random(in: 15...35)
+            let dy = CGFloat.random(in: -8...8)
+            let move = SKAction.moveBy(x: dx, y: dy, duration: 0.4)
+            move.timingMode = .easeOut
+            let fade = SKAction.fadeOut(withDuration: 0.35)
+            dot.run(.sequence([.group([move, fade]), .removeFromParent()]))
+        }
+    }
+
+    // MARK: - Question Bubble (curious)
+
+    func showQuestionBubble() {
+        let bubble = makeSpeechBubble(text: "?")
+        bubble.position = CGPoint(x: 18, y: 72)
+        bubble.alpha = 0
+        bubble.setScale(0.1)
+        addChild(bubble)
+
+        let popIn = SKAction.group([
+            SKAction.fadeIn(withDuration: 0.14),
+            SKAction.easedScale(to: 1.0, duration: 0.22, easing: Easing.easeOutBack),
+        ])
+        let hold = SKAction.wait(forDuration: 2.5)
+        let leave = SKAction.group([
+            SKAction.moveBy(x: 0, y: 12, duration: 0.5),
+            SKAction.fadeOut(withDuration: 0.5),
+        ])
+        bubble.run(.sequence([popIn, hold, leave, .removeFromParent()]))
+    }
+
     // MARK: - Greeting Bubble
 
     private static let greetings = ["Hi! 👋", "Hello!", "Hey!", "Heya!", "Howdy!", "Helloooo! 😊", "Yo! ✌️"]

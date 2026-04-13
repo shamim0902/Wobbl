@@ -70,6 +70,33 @@ final class PetEyesNode: SKNode {
         addChild(rightSclera)
 
         startBlinking()
+        startEyeShimmer()
+    }
+
+    // MARK: - Eye Shimmer (permanent subtle sparkle)
+
+    private func startEyeShimmer() {
+        // Primary highlights: gentle pulse
+        let pulse = SKAction.sequence([
+            SKAction.scale(to: 1.35, duration: 1.4),
+            SKAction.scale(to: 0.9, duration: 1.4),
+        ])
+        pulse.timingMode = .easeInEaseOut
+        leftHighlight.run(.repeatForever(pulse))
+        // Slightly offset phase for the right eye
+        rightHighlight.run(.sequence([
+            SKAction.wait(forDuration: 0.7),
+            .repeatForever(pulse),
+        ]))
+
+        // Secondary highlights: slower counter-pulse for depth
+        let pulse2 = SKAction.sequence([
+            SKAction.scale(to: 0.7, duration: 1.8),
+            SKAction.scale(to: 1.25, duration: 1.8),
+        ])
+        pulse2.timingMode = .easeInEaseOut
+        leftHighlight2.run(.repeatForever(pulse2))
+        rightHighlight2.run(.repeatForever(pulse2))
     }
 
     func setExpression(_ expression: EyeExpression) {
