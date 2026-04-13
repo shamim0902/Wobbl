@@ -11,6 +11,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var petBrain: PetBrain!
     private var animationController: AnimationController!
     private var walkingController: WalkingController!
+    private var peekabooController: PeekabooController!
+    private var hoverController: HoverController!
     private var cancellables = Set<AnyCancellable>()
     private var scenePauseWatchdog: DispatchSourceTimer?
 
@@ -20,6 +22,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         setupPetWindow()
         setupSensors()
         setupWalking()
+        setupPeekaboo()
+        setupHover()
         setupMenuBar()
         preventScenePause()
     }
@@ -78,7 +82,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         petWindow.backgroundColor = .clear
         petWindow.hasShadow = false
         petWindow.level = .floating
-        petWindow.collectionBehavior = [.canJoinAllSpaces, .transient]
+        petWindow.collectionBehavior = [.managed, .fullScreenAuxiliary]
         petWindow.isMovableByWindowBackground = false
         petWindow.ignoresMouseEvents = true
 
@@ -142,6 +146,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 }
             }
             .store(in: &cancellables)
+    }
+
+    private func setupPeekaboo() {
+        peekabooController = PeekabooController()
+        peekabooController.setup(
+            window: petWindow,
+            scene: petScene,
+            walkingController: walkingController,
+            brain: petBrain
+        )
+    }
+
+    private func setupHover() {
+        hoverController = HoverController()
+        hoverController.setup(window: petWindow, scene: petScene)
     }
 
     private func setupMenuBar() {

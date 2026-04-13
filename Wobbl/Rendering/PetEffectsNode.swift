@@ -3,6 +3,8 @@ import SpriteKit
 final class PetEffectsNode: SKNode {
     private var activeEmitters: [String: SKEmitterNode] = [:]
     private var activeNodes: [String: SKNode] = [:]
+    private weak var greetingBubble: SKNode?   // tracked separately — survives stopAll()
+    private weak var hoverBubble: SKNode?      // same: immune to stopAll()
 
     func setup() {
         // Container positioned above the body center
@@ -98,6 +100,160 @@ final class PetEffectsNode: SKNode {
         activeNodes["stars"]?.removeAllActions()
         activeNodes["stars"]?.removeFromParent()
         activeNodes["stars"] = nil
+    }
+
+    // MARK: - Greeting Bubble
+
+    private static let greetings = ["Hi! 👋", "Hello!", "Hey!", "Heya!", "Howdy!", "Hiya! 😊", "Yo! ✌️"]
+
+    func showGreeting() {
+        // Dismiss any existing bubble immediately
+        greetingBubble?.removeAllActions()
+        greetingBubble?.removeFromParent()
+        greetingBubble = nil
+
+        let text = PetEffectsNode.greetings.randomElement() ?? "Hi!"
+        let bubble = makeSpeechBubble(text: text)
+        bubble.position = CGPoint(x: 14, y: 72)
+        bubble.alpha = 0
+        bubble.setScale(0.1)
+        addChild(bubble)
+        greetingBubble = bubble   // NOT in activeNodes — immune to stopAll()
+
+        let popIn = SKAction.group([
+            SKAction.fadeIn(withDuration: 0.14),
+            SKAction.scale(to: 1.0, duration: 0.18),
+        ])
+        let hold = SKAction.wait(forDuration: 1.8)
+        let leave = SKAction.group([
+            SKAction.moveBy(x: 0, y: 12, duration: 0.55),
+            SKAction.fadeOut(withDuration: 0.55),
+        ])
+        let cleanup = SKAction.run { [weak self] in self?.greetingBubble = nil }
+        bubble.run(.sequence([popIn, hold, leave, .removeFromParent(), cleanup]))
+    }
+
+    private func makeSpeechBubble(text: String) -> SKNode {
+        let container = SKNode()
+
+        // Bubble body
+        let bw: CGFloat = 74
+        let bh: CGFloat = 28
+        let bodyRect = CGRect(x: -bw / 2, y: 0, width: bw, height: bh)
+        let bodyPath = CGPath(
+            roundedRect: bodyRect,
+            cornerWidth: 8, cornerHeight: 8, transform: nil
+        )
+        let body = SKShapeNode(path: bodyPath)
+        body.fillColor = SKColor.white
+        body.strokeColor = ColorPalette.normalStroke
+        body.lineWidth = 1.8
+
+        // Tail pointing toward the body (down-left)
+        let tailPath = CGMutablePath()
+        tailPath.move(to: CGPoint(x: -10, y: 0))
+        tailPath.addLine(to: CGPoint(x: -18, y: -11))
+        tailPath.addLine(to: CGPoint(x: -2, y: 0))
+        tailPath.closeSubpath()
+        let tail = SKShapeNode(path: tailPath)
+        tail.fillColor = SKColor.white
+        tail.strokeColor = ColorPalette.normalStroke
+        tail.lineWidth = 1.5
+
+        // Label — draw body first so label sits on top
+        let label = SKLabelNode(text: text)
+        label.fontName = "Avenir-Heavy"
+        label.fontSize = 12
+        label.fontColor = ColorPalette.pupil
+        label.verticalAlignmentMode = .center
+        label.horizontalAlignmentMode = .center
+        label.position = CGPoint(x: 0, y: bh / 2)
+
+        container.addChild(tail)
+        container.addChild(body)
+        container.addChild(label)
+        return container
+    }
+
+    // MARK: - Hover Bubble
+
+    private static let hoverTexts = [
+        "uwu ♥", "hehe~", "eep!", "owo", "squish!", "hiii!", "teehee~", "✨", "so soft~", "omg hi"
+    ]
+
+    func showHoverBubble() {
+        // Dismiss any existing hover bubble without animation
+        hoverBubble?.removeAllActions()
+        hoverBubble?.removeFromParent()
+        hoverBubble = nil
+
+        let text = PetEffectsNode.hoverTexts.randomElement() ?? "uwu"
+        let bubble = makeHoverBubble(text: text)
+        bubble.position = CGPoint(x: -8, y: 72)
+        bubble.alpha = 0
+        bubble.setScale(0.05)
+        addChild(bubble)
+        hoverBubble = bubble
+
+        let popIn = SKAction.group([
+            SKAction.fadeIn(withDuration: 0.16),
+            SKAction.scale(to: 1.0, duration: 0.22),
+        ])
+        popIn.timingMode = .easeOut
+        bubble.run(popIn)
+    }
+
+    func hideHoverBubble() {
+        guard let bubble = hoverBubble else { return }
+        hoverBubble = nil
+        let dismiss = SKAction.group([
+            SKAction.fadeOut(withDuration: 0.2),
+            SKAction.scale(to: 0.3, duration: 0.2),
+        ])
+        bubble.run(.sequence([dismiss, .removeFromParent()]))
+    }
+
+    private func makeHoverBubble(text: String) -> SKNode {
+        let container = SKNode()
+
+        let bw: CGFloat = 82
+        let bh: CGFloat = 28
+
+        // Soft lavender fill — matches Wobbl's colour palette
+        let bubbleFill = ColorPalette.normalBody.withAlphaComponent(0.92)
+
+        let bodyPath = CGPath(
+            roundedRect: CGRect(x: -bw / 2, y: 0, width: bw, height: bh),
+            cornerWidth: 10, cornerHeight: 10, transform: nil
+        )
+        let body = SKShapeNode(path: bodyPath)
+        body.fillColor = bubbleFill
+        body.strokeColor = ColorPalette.normalStroke
+        body.lineWidth = 1.6
+
+        // Tail pointing down-right (toward character body)
+        let tailPath = CGMutablePath()
+        tailPath.move(to: CGPoint(x: 8,  y: 0))
+        tailPath.addLine(to: CGPoint(x: 16, y: -11))
+        tailPath.addLine(to: CGPoint(x: 22, y: 0))
+        tailPath.closeSubpath()
+        let tail = SKShapeNode(path: tailPath)
+        tail.fillColor = bubbleFill
+        tail.strokeColor = ColorPalette.normalStroke
+        tail.lineWidth = 1.4
+
+        let label = SKLabelNode(text: text)
+        label.fontName = "Avenir-Heavy"
+        label.fontSize = 12
+        label.fontColor = ColorPalette.pupil
+        label.verticalAlignmentMode = .center
+        label.horizontalAlignmentMode = .center
+        label.position = CGPoint(x: 0, y: bh / 2)
+
+        container.addChild(tail)
+        container.addChild(body)
+        container.addChild(label)
+        return container
     }
 
     // MARK: - Stop All

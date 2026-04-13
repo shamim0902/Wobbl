@@ -9,8 +9,11 @@ enum PetActivity {
     case walking
     case standing
     case sitting
+    case relaxedSitting
     case scratchingHead
     case lookingAround
+    case boxing
+    case waving
 }
 
 /// Drives all of Wobbl's idle behaviour — walking, sitting, scratching, and looking around.
@@ -22,7 +25,7 @@ final class WalkingController {
 
     private(set) var direction: WalkDirection = .standing
     private var walkSpeed: CGFloat = 1.2
-    private var isEnabled = true
+    private(set) var isEnabled = true
 
     private var currentActivity: PetActivity = .standing
     private var activityTimeRemaining: TimeInterval = 0
@@ -73,6 +76,13 @@ final class WalkingController {
         case .walking:
             scene.limbsNode.stopWalking()
             scene.bodyNode.removeAction(forKey: "walkBob")
+        case .boxing:
+            scene.limbsNode.stopBoxing()
+        case .waving:
+            scene.limbsNode.stopWave()
+        case .relaxedSitting:
+            scene.eyesNode.setExpression(.normal)
+            scene.mouthNode.setShape(.neutral)
         default:
             break
         }
@@ -95,6 +105,15 @@ final class WalkingController {
             direction = .standing
             scene.limbsNode.setSittingPose()
 
+        case .relaxedSitting:
+            direction = .standing
+            scene.setFacingDirection(.standing)
+            scene.limbsNode.setRelaxedSitPose()
+            // Chill face — half-closed eyes, soft smile
+            scene.eyesNode.setExpression(.squint)
+            scene.mouthNode.setShape(.smile)
+            scene.cheeksNode.setBlushIntensity(0.25)
+
         case .scratchingHead:
             direction = .standing
             scene.limbsNode.startScratch()
@@ -103,19 +122,33 @@ final class WalkingController {
             direction = .standing
             scene.limbsNode.setStandingPose()
             scene.eyesNode.startLookAround()
+
+        case .boxing:
+            direction = .standing
+            scene.setFacingDirection(.standing)
+            scene.limbsNode.startBoxing()
+
+        case .waving:
+            direction = .standing
+            scene.setFacingDirection(.standing)
+            scene.limbsNode.setWavePose()
+            scene.effectsNode.showGreeting()
         }
     }
 
     // MARK: - Activity Selection
 
     private func pickNextActivity() -> PetActivity {
-        // Weighted random: walk 30%, stand 20%, sit 25%, scratch 15%, look 10%
+        // walk 22%, stand 12%, sit 12%, relaxedSit 14%, scratch 12%, look 10%, boxing 10%, wave 8%
         switch Int.random(in: 0..<100) {
-        case 0..<30:  return .walking
-        case 30..<50: return .standing
-        case 50..<75: return .sitting
-        case 75..<90: return .scratchingHead
-        default:      return .lookingAround
+        case 0..<22:  return .walking
+        case 22..<34: return .standing
+        case 34..<46: return .sitting
+        case 46..<60: return .relaxedSitting
+        case 60..<72: return .scratchingHead
+        case 72..<82: return .lookingAround
+        case 82..<92: return .boxing
+        default:      return .waving
         }
     }
 
@@ -124,8 +157,11 @@ final class WalkingController {
         case .walking:        return TimeInterval.random(in: 3.0...7.0)
         case .standing:       return TimeInterval.random(in: 2.0...4.0)
         case .sitting:        return TimeInterval.random(in: 7.0...14.0)
+        case .relaxedSitting: return TimeInterval.random(in: 9.0...18.0)
         case .scratchingHead: return TimeInterval.random(in: 4.0...7.0)
         case .lookingAround:  return TimeInterval.random(in: 4.0...8.0)
+        case .boxing:         return TimeInterval.random(in: 4.0...8.0)
+        case .waving:         return TimeInterval.random(in: 3.0...5.0)
         }
     }
 
@@ -134,8 +170,13 @@ final class WalkingController {
     func pause() {
         guard let scene = scene else { isEnabled = false; return }
         switch currentActivity {
-        case .scratchingHead: scene.limbsNode.stopScratch()
-        case .lookingAround:  scene.eyesNode.stopLookAround()
+        case .scratchingHead:  scene.limbsNode.stopScratch()
+        case .lookingAround:   scene.eyesNode.stopLookAround()
+        case .boxing:          scene.limbsNode.stopBoxing()
+        case .waving:          scene.limbsNode.stopWave()
+        case .relaxedSitting:
+            scene.eyesNode.setExpression(.normal)
+            scene.mouthNode.setShape(.neutral)
         default: break
         }
         isEnabled = false

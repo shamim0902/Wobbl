@@ -167,6 +167,21 @@ final class PetLimbsNode: SKNode {
         rightHip.run(SKAction.rotate(toAngle: 0, duration: 0.3))
         leftKnee.run(SKAction.rotate(toAngle: 0, duration: 0.2))
         rightKnee.run(SKAction.rotate(toAngle: 0, duration: 0.2))
+
+        // Gentle arm sway once joints settle
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in
+            guard let self = self else { return }
+            let swayL = SKAction.sequence([
+                SKAction.rotate(toAngle: 0.22, duration: 1.9),
+                SKAction.rotate(toAngle: 0.10, duration: 1.9),
+            ])
+            let swayR = SKAction.sequence([
+                SKAction.rotate(toAngle: -0.22, duration: 1.9),
+                SKAction.rotate(toAngle: -0.10, duration: 1.9),
+            ])
+            self.leftShoulder.run(.repeatForever(swayL), withKey: "idleSway")
+            self.rightShoulder.run(.repeatForever(swayR), withKey: "idleSway")
+        }
     }
 
     // MARK: - Walking
@@ -186,37 +201,38 @@ final class PetLimbsNode: SKNode {
     }
 
     private func animateWalkCycle(stepDuration: TimeInterval) {
-        let legSwing: CGFloat = 0.45
-        let armSwing: CGFloat = 0.35
-        let kneeFlexFwd: CGFloat = 0.3
-        let elbowFlex: CGFloat = 0.25
+        // Leg/arm ranges — bigger swing + proper back-leg kick
+        let legFwd: CGFloat  =  0.52   // forward thigh swing
+        let legBack: CGFloat = -0.38   // backward thigh kick (was -0.135, now proper push-off)
+        let kneeUp: CGFloat  =  0.44   // knee lift on the forward leg
+        let kneePush: CGFloat = 0.16   // slight back-knee bend for push-off feel
+        let armFwd: CGFloat  =  0.42   // arm swings forward
+        let armBack: CGFloat = -0.38   // arm swings back
+        let elbowFwd: CGFloat = 0.32   // elbow bends on the arm coming forward
+        let elbowBack: CGFloat = 0.10  // stays nearly straight when arm is back
 
-        let leftLegFwd      = makeSwing(node: leftHip,      to: legSwing,          duration: stepDuration)
-        let rightLegBack     = makeSwing(node: rightHip,     to: -legSwing * 0.3,   duration: stepDuration)
-        let leftKneeBend     = makeSwing(node: leftKnee,     to: kneeFlexFwd,       duration: stepDuration)
-        let rightKneeStraight = makeSwing(node: rightKnee,  to: 0,                 duration: stepDuration)
-        let leftArmBack      = makeSwing(node: leftShoulder, to: -armSwing,         duration: stepDuration)
-        let rightArmFwd      = makeSwing(node: rightShoulder,to: armSwing,          duration: stepDuration)
-        let leftElbowFlex    = makeSwing(node: leftElbow,    to: elbowFlex,         duration: stepDuration)
-        let rightElbowFlex   = makeSwing(node: rightElbow,   to: -elbowFlex,        duration: stepDuration)
-
+        // Step 1: left leg forward, right leg back
         let step1 = SKAction.group([
-            leftLegFwd, rightLegBack, leftKneeBend, rightKneeStraight,
-            leftArmBack, rightArmFwd, leftElbowFlex, rightElbowFlex
+            makeSwing(node: leftHip,       to: legFwd,   duration: stepDuration),
+            makeSwing(node: rightHip,      to: legBack,  duration: stepDuration),
+            makeSwing(node: leftKnee,      to: kneeUp,   duration: stepDuration),
+            makeSwing(node: rightKnee,     to: kneePush, duration: stepDuration),
+            makeSwing(node: leftShoulder,  to: armBack,  duration: stepDuration),
+            makeSwing(node: rightShoulder, to: armFwd,   duration: stepDuration),
+            makeSwing(node: leftElbow,     to: elbowBack,duration: stepDuration),
+            makeSwing(node: rightElbow,    to: -elbowFwd,duration: stepDuration),
         ])
 
-        let rightLegFwd      = makeSwing(node: rightHip,     to: legSwing,          duration: stepDuration)
-        let leftLegBack      = makeSwing(node: leftHip,      to: -legSwing * 0.3,   duration: stepDuration)
-        let rightKneeBend    = makeSwing(node: rightKnee,    to: kneeFlexFwd,       duration: stepDuration)
-        let leftKneeStraight2 = makeSwing(node: leftKnee,   to: 0,                 duration: stepDuration)
-        let rightArmBack     = makeSwing(node: rightShoulder,to: -armSwing,         duration: stepDuration)
-        let leftArmFwd       = makeSwing(node: leftShoulder, to: armSwing,          duration: stepDuration)
-        let rightElbowFlex2  = makeSwing(node: rightElbow,   to: elbowFlex,         duration: stepDuration)
-        let leftElbowFlex2   = makeSwing(node: leftElbow,    to: -elbowFlex,        duration: stepDuration)
-
+        // Step 2: right leg forward, left leg back
         let step2 = SKAction.group([
-            rightLegFwd, leftLegBack, rightKneeBend, leftKneeStraight2,
-            rightArmBack, leftArmFwd, rightElbowFlex2, leftElbowFlex2
+            makeSwing(node: rightHip,      to: legFwd,   duration: stepDuration),
+            makeSwing(node: leftHip,       to: legBack,  duration: stepDuration),
+            makeSwing(node: rightKnee,     to: kneeUp,   duration: stepDuration),
+            makeSwing(node: leftKnee,      to: kneePush, duration: stepDuration),
+            makeSwing(node: rightShoulder, to: armBack,  duration: stepDuration),
+            makeSwing(node: leftShoulder,  to: armFwd,   duration: stepDuration),
+            makeSwing(node: rightElbow,    to: elbowBack,duration: stepDuration),
+            makeSwing(node: leftElbow,     to: -elbowFwd,duration: stepDuration),
         ])
 
         run(.repeatForever(.sequence([step1, step2])), withKey: "walkCycle")
@@ -235,9 +251,12 @@ final class PetLimbsNode: SKNode {
 
     private func stopJointAnimations() {
         for joint in [leftShoulder, rightShoulder, leftHip, rightHip,
-                      leftKnee, rightKnee, leftElbow, rightElbow] {
+                      leftKnee, rightKnee, leftElbow, rightElbow,
+                      leftAnkle, rightAnkle] {
             joint.removeAction(forKey: "swing")
         }
+        leftShoulder.removeAction(forKey: "idleSway")
+        rightShoulder.removeAction(forKey: "idleSway")
     }
 
     // MARK: - Mood Poses
@@ -293,6 +312,32 @@ final class PetLimbsNode: SKNode {
         rightElbow.run(SKAction.rotate(toAngle: -0.6, duration: 0.2))
     }
 
+    // MARK: - Relaxed Sit (legs horizontal, chill face)
+
+    func setRelaxedSitPose() {
+        isWalking = false
+        removeAction(forKey: "walkCycle")
+        stopJointAnimations()
+
+        // Thighs stretch out horizontally to each side
+        leftHip.run(SKAction.rotate(toAngle: 1.48, duration: 0.55))
+        rightHip.run(SKAction.rotate(toAngle: -1.48, duration: 0.55))
+
+        // Shins hang slightly downward from the horizontal thigh
+        leftKnee.run(SKAction.rotate(toAngle: -0.28, duration: 0.45))
+        rightKnee.run(SKAction.rotate(toAngle: 0.28, duration: 0.45))
+
+        // Ankles rotate so shoes face roughly downward (natural dangle)
+        leftAnkle.run(SKAction.rotate(toAngle: 1.1, duration: 0.4))
+        rightAnkle.run(SKAction.rotate(toAngle: -1.1, duration: 0.4))
+
+        // Arms prop loosely behind / at sides — relaxed slouch
+        leftShoulder.run(SKAction.rotate(toAngle: 0.48, duration: 0.45))
+        rightShoulder.run(SKAction.rotate(toAngle: -0.48, duration: 0.45))
+        leftElbow.run(SKAction.rotate(toAngle: 0.32, duration: 0.35))
+        rightElbow.run(SKAction.rotate(toAngle: -0.32, duration: 0.35))
+    }
+
     func setSittingPose() {
         isWalking = false
         removeAction(forKey: "walkCycle")
@@ -329,5 +374,69 @@ final class PetLimbsNode: SKNode {
 
     func stopScratch() {
         rightElbow.removeAction(forKey: "scratch")
+    }
+
+    // MARK: - Boxing
+
+    func startBoxing() {
+        isWalking = false
+        removeAction(forKey: "walkCycle")
+        stopJointAnimations()
+
+        // Boxer guard stance — arms raised, elbows bent inward
+        leftShoulder.run(SKAction.rotate(toAngle: -1.0, duration: 0.25))
+        rightShoulder.run(SKAction.rotate(toAngle: 1.0, duration: 0.25))
+        leftElbow.run(SKAction.rotate(toAngle: 0.8, duration: 0.2))
+        rightElbow.run(SKAction.rotate(toAngle: -0.8, duration: 0.2))
+        leftHip.run(SKAction.rotate(toAngle: 0.12, duration: 0.25))
+        rightHip.run(SKAction.rotate(toAngle: -0.12, duration: 0.25))
+
+        // Start combo after guard is set
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in
+            self?.runBoxingCombo()
+        }
+    }
+
+    private func runBoxingCombo() {
+        // Left jab: shoot arm out then pull back
+        let jabLeft = SKAction.sequence([
+            SKAction.run { [weak self] in
+                self?.leftShoulder.run(SKAction.rotate(toAngle: -1.7, duration: 0.1), withKey: "swingLS")
+                self?.leftElbow.run(SKAction.rotate(toAngle: 0.1, duration: 0.1), withKey: "swingLE")
+            },
+            SKAction.wait(forDuration: 0.14),
+            SKAction.run { [weak self] in
+                self?.leftShoulder.run(SKAction.rotate(toAngle: -1.0, duration: 0.16), withKey: "swingLS")
+                self?.leftElbow.run(SKAction.rotate(toAngle: 0.8, duration: 0.14), withKey: "swingLE")
+            },
+            SKAction.wait(forDuration: 0.22),
+        ])
+
+        // Right jab
+        let jabRight = SKAction.sequence([
+            SKAction.run { [weak self] in
+                self?.rightShoulder.run(SKAction.rotate(toAngle: 1.7, duration: 0.1), withKey: "swingRS")
+                self?.rightElbow.run(SKAction.rotate(toAngle: -0.1, duration: 0.1), withKey: "swingRE")
+            },
+            SKAction.wait(forDuration: 0.14),
+            SKAction.run { [weak self] in
+                self?.rightShoulder.run(SKAction.rotate(toAngle: 1.0, duration: 0.16), withKey: "swingRS")
+                self?.rightElbow.run(SKAction.rotate(toAngle: -0.8, duration: 0.14), withKey: "swingRE")
+            },
+            SKAction.wait(forDuration: 0.22),
+        ])
+
+        let rest = SKAction.wait(forDuration: TimeInterval.random(in: 0.3...0.7))
+        run(.repeatForever(.sequence([jabLeft, jabRight, rest])), withKey: "boxing")
+    }
+
+    func stopBoxing() {
+        removeAction(forKey: "boxing")
+        for joint in [leftShoulder, rightShoulder, leftElbow, rightElbow] {
+            joint.removeAction(forKey: "swingLS")
+            joint.removeAction(forKey: "swingLE")
+            joint.removeAction(forKey: "swingRS")
+            joint.removeAction(forKey: "swingRE")
+        }
     }
 }

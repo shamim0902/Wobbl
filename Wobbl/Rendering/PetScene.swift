@@ -132,6 +132,67 @@ final class PetScene: SKScene {
         DispatchQueue.main.asyncAfter(deadline: .now() + duration, execute: item)
     }
 
+    // MARK: - Hover Reaction
+
+    private var hoverSettleWorkItem: DispatchWorkItem?
+
+    func startHoverReaction() {
+        hoverSettleWorkItem?.cancel()
+
+        // Phase 1 — surprised squish
+        eyesNode.stopBlinking()
+        eyesNode.setExpression(.wide)
+        mouthNode.setShape(.openSmall)
+        cheeksNode.setBlushIntensity(1.0)
+
+        let squish = SKAction.sequence([
+            SKAction.scaleY(to: 0.78, duration: 0.07),
+            SKAction.scaleY(to: 1.18, duration: 0.11),
+            SKAction.scaleY(to: 1.0, duration: 0.10),
+        ])
+        bodyNode.run(squish)
+
+        // Show hover bubble
+        effectsNode.showHoverBubble()
+
+        // Phase 2 — settle into cute/relaxed mode after 0.45s
+        let settle = DispatchWorkItem { [weak self] in self?.settleHoverReaction() }
+        hoverSettleWorkItem = settle
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.45, execute: settle)
+    }
+
+    private func settleHoverReaction() {
+        eyesNode.setExpression(.squint)
+        mouthNode.setShape(.smile)
+        cheeksNode.setBlushIntensity(0.75)
+        eyesNode.startBlinking()
+
+        // Gentle whole-character sway
+        characterContainer.removeAction(forKey: "hoverSway")
+        let sway = SKAction.sequence([
+            SKAction.rotate(toAngle:  0.065, duration: 0.55),
+            SKAction.rotate(toAngle: -0.065, duration: 0.55),
+        ])
+        sway.timingMode = .easeInEaseOut
+        characterContainer.run(.repeatForever(sway), withKey: "hoverSway")
+    }
+
+    func endHoverReaction() {
+        hoverSettleWorkItem?.cancel()
+        hoverSettleWorkItem = nil
+
+        characterContainer.removeAction(forKey: "hoverSway")
+        let resetSway = SKAction.rotate(toAngle: 0, duration: 0.25)
+        resetSway.timingMode = .easeInEaseOut
+        characterContainer.run(resetSway)
+
+        effectsNode.hideHoverBubble()
+        eyesNode.setExpression(.normal)
+        mouthNode.setShape(.smile)
+        cheeksNode.setBlushIntensity(0.3)
+        eyesNode.startBlinking()
+    }
+
     // MARK: - Idle Animations
 
     private func startIdleAnimations() {
