@@ -1,0 +1,18 @@
+# Swift / Xcode
+.build/
+.swiftpm/
+*.xcodeproj/xcuserdata/
+*.xcworkspace/xcuserdata/
+DerivedData/
+*.dSYM
+*.ipa
+*.xcarchive
+
+# macOS
+.DS_Store
+*.swp
+*~
+._*
+
+# Debug logs
+/tmp/wobbl_*.log
