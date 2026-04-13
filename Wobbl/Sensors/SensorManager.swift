@@ -8,8 +8,14 @@ final class SensorManager: ObservableObject {
     private let temperature = TemperatureReader()
     private let idle = IdleDetector()
 
-    private var pollTimer: Timer?
+    private var stateTimer: Timer?
+    private var slowSensorTimer: Timer?
     private var latestAccel: AccelReading?
+    private var latestThermal: ThermalReading?
+
+    private let stateUpdateInterval: TimeInterval = 0.25
+    private let slowSensorPollInterval: TimeInterval = 5.0
+    private let accelFreshnessWindow: TimeInterval = 0.35
 
     func start() {
         // Accelerometer: callback-driven (push model, downsampled to 20Hz)
@@ -19,33 +25,59 @@ final class SensorManager: ObservableObject {
             self.publishSnapshot()
         }
 
-        // Temperature + idle: polled every 5 seconds
         _ = temperature.open()
-        pollTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { [weak self] _ in
-            self?.pollSlowSensors()
-        }
-        // Initial poll
-        pollSlowSensors()
+        refreshSlowSensors()
+        startStateTimer()
+        startSlowSensorTimer()
+        publishSnapshot()
     }
 
     func stop() {
         accelerometer.stop()
         temperature.close()
-        pollTimer?.invalidate()
-        pollTimer = nil
+        stateTimer?.invalidate()
+        stateTimer = nil
+        slowSensorTimer?.invalidate()
+        slowSensorTimer = nil
     }
 
-    private func pollSlowSensors() {
+    private func startStateTimer() {
+        let timer = Timer(timeInterval: stateUpdateInterval, repeats: true) { [weak self] _ in
+            self?.publishSnapshot()
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        stateTimer = timer
+    }
+
+    private func startSlowSensorTimer() {
+        let timer = Timer(timeInterval: slowSensorPollInterval, repeats: true) { [weak self] _ in
+            self?.refreshSlowSensors()
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        slowSensorTimer = timer
+    }
+
+    private func refreshSlowSensors() {
+        let now = ProcessInfo.processInfo.systemUptime
+        latestThermal = temperature.readCPUTemperature().map {
+            ThermalReading(cpuDieTemperature: $0, timestamp: now)
+        }
         publishSnapshot()
     }
 
+    private func currentAcceleration(now: TimeInterval) -> AccelReading? {
+        guard let latestAccel else { return nil }
+        guard now - latestAccel.timestamp <= accelFreshnessWindow else { return nil }
+        return latestAccel
+    }
+
     private func publishSnapshot() {
-        let temp = temperature.readCPUTemperature()
+        let now = ProcessInfo.processInfo.systemUptime
         let idleTime = idle.secondsSinceLastInput()
 
         latestSnapshot = SensorSnapshot(
-            acceleration: latestAccel,
-            thermal: temp.map { ThermalReading(cpuDieTemperature: $0, timestamp: ProcessInfo.processInfo.systemUptime) },
+            acceleration: currentAcceleration(now: now),
+            thermal: latestThermal,
             secondsSinceLastUserInput: idleTime
         )
     }

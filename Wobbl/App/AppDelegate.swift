@@ -10,23 +10,62 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var sensorManager: SensorManager!
     private var petBrain: PetBrain!
     private var animationController: AnimationController!
+    private var walkingController: WalkingController!
     private var cancellables = Set<AnyCancellable>()
+    private var scenePauseWatchdog: DispatchSourceTimer?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        // Hide from dock — menu bar only
         NSApp.setActivationPolicy(.accessory)
 
         setupPetWindow()
         setupSensors()
+        setupWalking()
         setupMenuBar()
+        preventScenePause()
+    }
+
+    private func preventScenePause() {
+        // SpriteKit pauses the scene when the app loses focus — fight that
+        NotificationCenter.default.publisher(for: NSApplication.didResignActiveNotification)
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.unpauseSpriteKit()
+            }
+            .store(in: &cancellables)
+
+        NotificationCenter.default.publisher(for: NSApplication.didHideNotification)
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.unpauseSpriteKit()
+            }
+            .store(in: &cancellables)
+
+        // Watchdog: force-unpause every 0.5s from a background thread
+        let watchdog = DispatchSource.makeTimerSource(queue: DispatchQueue.global(qos: .background))
+        watchdog.schedule(deadline: .now() + 0.5, repeating: 0.5)
+        watchdog.setEventHandler { [weak self] in
+            guard let self = self else { return }
+            DispatchQueue.main.async {
+                self.unpauseSpriteKit()
+            }
+        }
+        watchdog.resume()
+        scenePauseWatchdog = watchdog
+    }
+
+    private func unpauseSpriteKit() {
+        petScene.isPaused = false
+        petScene.view?.isPaused = false
     }
 
     private func setupPetWindow() {
-        let windowSize = CGSize(width: 200, height: 200)
+        let windowSize = CGSize(width: 200, height: 280)
         let screenFrame = NSScreen.main?.visibleFrame ?? .zero
+
+        // Start at bottom-center of screen
         let origin = CGPoint(
-            x: screenFrame.maxX - windowSize.width - 40,
-            y: screenFrame.minY + 40
+            x: screenFrame.midX - windowSize.width / 2,
+            y: screenFrame.minY
         )
 
         petWindow = NSWindow(
@@ -40,8 +79,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         petWindow.hasShadow = false
         petWindow.level = .floating
         petWindow.collectionBehavior = [.canJoinAllSpaces, .transient]
-        petWindow.isMovableByWindowBackground = true
-        petWindow.ignoresMouseEvents = false
+        petWindow.isMovableByWindowBackground = false
+        petWindow.ignoresMouseEvents = true
 
         petScene = PetScene(size: windowSize)
         petScene.scaleMode = .resizeFill
@@ -66,7 +105,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         petBrain = PetBrain()
         animationController = AnimationController(scene: petScene, brain: petBrain)
 
-        // Wire sensors → brain
         sensorManager.$latestSnapshot
             .receive(on: RunLoop.main)
             .sink { [weak self] snapshot in
@@ -75,6 +113,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             .store(in: &cancellables)
 
         sensorManager.start()
+    }
+
+    private func setupWalking() {
+        walkingController = WalkingController()
+        walkingController.setup(window: petWindow, scene: petScene)
+
+        // Adjust walking based on mood
+        petBrain.$currentState
+            .receive(on: RunLoop.main)
+            .sink { [weak self] state in
+                guard let self = self else { return }
+                switch state {
+                case .happy, .idle:
+                    self.walkingController.resume()
+                    self.walkingController.setSpeed(1.2)
+                case .scared:
+                    self.walkingController.resume()
+                    self.walkingController.setSpeed(2.5)
+                case .sweat:
+                    self.walkingController.resume()
+                    self.walkingController.setSpeed(0.6)
+                case .shiver:
+                    self.walkingController.resume()
+                    self.walkingController.setSpeed(0.5)
+                case .sleep, .vomit, .dizzy:
+                    self.walkingController.pause()
+                }
+            }
+            .store(in: &cancellables)
     }
 
     private func setupMenuBar() {

@@ -100,20 +100,14 @@ final class AnimationController {
         scene.eyesNode.setExpression(.normal)
         scene.mouthNode.setShape(.neutral)
         scene.cheeksNode.setBlushIntensity(0.2)
+        scene.limbsNode.setStandingPose()
     }
 
     private func animateHappy() {
         scene.eyesNode.setExpression(.normal)
         scene.mouthNode.setShape(.smile)
         scene.cheeksNode.setBlushIntensity(0.5)
-
-        // Gentle extra bounce
-        let bounce = SKAction.sequence([
-            SKAction.moveBy(x: 0, y: 3, duration: 0.3),
-            SKAction.moveBy(x: 0, y: -3, duration: 0.3),
-        ])
-        bounce.timingMode = .easeInEaseOut
-        scene.bodyNode.run(.repeatForever(bounce), withKey: "stateAnim")
+        // Limbs managed by WalkingController (walking or standing)
     }
 
     private func animateVomit(intensity: Double) {
@@ -124,6 +118,7 @@ final class AnimationController {
         scene.cheeksNode.setBlushIntensity(0.8, color: ColorPalette.blushSick)
 
         scene.effectsNode.startVomit()
+        scene.limbsNode.setSickPose()
 
         // Wobble body more aggressively
         let wobble = SKAction.sequence([
@@ -162,6 +157,7 @@ final class AnimationController {
         scene.cheeksNode.setBlushIntensity(0.4)
 
         scene.effectsNode.startStars()
+        scene.limbsNode.setStandingPose()
 
         // Tilt body toward the physical tilt
         let tiltAction = SKAction.rotate(toAngle: CGFloat(angle) * 0.3, duration: 0.5)
@@ -186,6 +182,7 @@ final class AnimationController {
         scene.cheeksNode.setBlushIntensity(0.15)
 
         scene.effectsNode.startZZZ()
+        scene.limbsNode.setSleepPose()
 
         // Slower, deeper breathing
         scene.bodyNode.removeAction(forKey: "breathing")
@@ -216,6 +213,8 @@ final class AnimationController {
         scene.eyesNode.setExpression(.wide)
         scene.mouthNode.setShape(.openSmall)
         scene.cheeksNode.setBlushIntensity(0.6)
+
+        scene.limbsNode.setScaredPose()
 
         // Quick squish then spring back
         let squish = SKAction.sequence([
