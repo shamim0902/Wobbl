@@ -26,7 +26,7 @@ final class PetScene: SKScene {
         view.allowsTransparency = true
         view.isPaused = false
 
-        let center = CGPoint(x: size.width / 2, y: 100)
+        let center = CGPoint(x: size.width / 2, y: 120)
 
         characterContainer.position = center
         addChild(characterContainer)

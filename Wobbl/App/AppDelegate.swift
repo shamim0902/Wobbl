@@ -85,8 +85,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         petWindow.hasShadow = false
         petWindow.level = .floating
         petWindow.collectionBehavior = [.managed, .fullScreenAuxiliary]
-        petWindow.isMovableByWindowBackground = false
-        petWindow.ignoresMouseEvents = true
+        petWindow.isMovableByWindowBackground = true
+        petWindow.ignoresMouseEvents = true   // HoverController toggles this on hover
 
         petScene = PetScene(size: windowSize)
         petScene.scaleMode = .resizeFill
@@ -163,6 +163,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func setupHover() {
         hoverController = HoverController()
         hoverController.setup(window: petWindow, scene: petScene)
+        hoverController.walkingController = walkingController
     }
 
     private func setupIdleSleep() {

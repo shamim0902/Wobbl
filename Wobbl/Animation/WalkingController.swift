@@ -13,6 +13,7 @@ enum PetActivity {
     case scratchingHead
     case lookingAround
     case waving
+    case surfing
 }
 
 /// Drives all of Wobbl's idle behaviour — walking, sitting, scratching, and looking around.
@@ -58,7 +59,7 @@ final class WalkingController {
             let next = pickNextActivity()
             transition(to: next, window: window, scene: scene)
             activityTimeRemaining = duration(for: next)
-        } else if currentActivity == .walking {
+        } else if currentActivity == .walking || currentActivity == .surfing {
             moveWindow(window: window, scene: scene)
         }
     }
@@ -74,6 +75,10 @@ final class WalkingController {
             scene.eyesNode.stopLookAround()
         case .walking:
             scene.limbsNode.stopWalking()
+            scene.bodyNode.removeAction(forKey: "walkBob")
+            scene.setWalkTilt(on: false)
+        case .surfing:
+            scene.limbsNode.stopSurfing()
             scene.bodyNode.removeAction(forKey: "walkBob")
             scene.setWalkTilt(on: false)
         case .waving:
@@ -141,21 +146,29 @@ final class WalkingController {
             scene.setFacingDirection(.standing)
             scene.limbsNode.setWavePose()
             scene.effectsNode.showGreeting()
+
+        case .surfing:
+            pickDirection(window: window)
+            scene.limbsNode.startSurfing()
+            scene.setFacingDirection(direction)
+            scene.setWalkTilt(on: true)
+            startSurfBob(scene: scene)
         }
     }
 
     // MARK: - Activity Selection
 
     private func pickNextActivity() -> PetActivity {
-        // walk 20%, stand 12%, sit 14%, relaxedSit 18%, scratch 12%, look 14%, wave 10%
+        // walk 15%, stand 10%, sit 10%, relaxedSit 15%, scratch 10%, look 10%, wave 10%, surf 20%
         switch Int.random(in: 0..<100) {
-        case 0..<20:  return .walking
-        case 20..<32: return .standing
-        case 32..<46: return .sitting
-        case 46..<64: return .relaxedSitting
-        case 64..<76: return .scratchingHead
-        case 76..<90: return .lookingAround
-        default:      return .waving
+        case 0..<15:  return .walking
+        case 15..<25: return .standing
+        case 25..<35: return .sitting
+        case 35..<50: return .relaxedSitting
+        case 50..<60: return .scratchingHead
+        case 60..<70: return .lookingAround
+        case 70..<80: return .waving
+        default:      return .surfing
         }
     }
 
@@ -168,6 +181,7 @@ final class WalkingController {
         case .scratchingHead: return TimeInterval.random(in: 4.0...7.0)
         case .lookingAround:  return TimeInterval.random(in: 4.0...8.0)
         case .waving:         return TimeInterval.random(in: 3.0...5.0)
+        case .surfing:        return TimeInterval.random(in: 5.0...10.0)
         }
     }
 
@@ -179,6 +193,7 @@ final class WalkingController {
         case .scratchingHead:  scene.limbsNode.stopScratch()
         case .lookingAround:   scene.eyesNode.stopLookAround()
         case .waving:          scene.limbsNode.stopWave()
+        case .surfing:         scene.limbsNode.stopSurfing()
         case .relaxedSitting:
             scene.eyesNode.setExpression(.normal)
             scene.mouthNode.setShape(.neutral)
@@ -249,6 +264,15 @@ final class WalkingController {
             $0.frame.intersects(window.frame) || $0.frame.contains(window.frame.center)
         }) { return screen.visibleFrame }
         return NSScreen.main?.visibleFrame ?? NSScreen.screens.first?.visibleFrame ?? .zero
+    }
+
+    private func startSurfBob(scene: PetScene) {
+        scene.bodyNode.removeAction(forKey: "walkBob")
+        let up   = SKAction.moveBy(x: 0, y: 7, duration: 0.5)
+        let down = SKAction.moveBy(x: 0, y: -7, duration: 0.5)
+        up.timingMode   = .easeInEaseOut
+        down.timingMode = .easeInEaseOut
+        scene.bodyNode.run(.repeatForever(.sequence([up, down])), withKey: "walkBob")
     }
 
     private func startBodyBob(scene: PetScene) {

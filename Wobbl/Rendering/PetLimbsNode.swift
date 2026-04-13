@@ -45,6 +45,9 @@ final class PetLimbsNode: SKNode {
     private let gloveColor = SKColor(red: 0.18, green: 0.12, blue: 0.26, alpha: 1.0)
     private let shoeColor = SKColor(red: 0.10, green: 0.07, blue: 0.16, alpha: 1.0)
 
+    // Surfboard
+    private let surfboard = SKShapeNode()
+
     private(set) var isWalking = false
     private var walkPhase: CGFloat = 0.0
     private var idleSwayWorkItem: DispatchWorkItem?
@@ -138,12 +141,46 @@ final class PetLimbsNode: SKNode {
         rightShin.addChild(rightAnkle)
         rightAnkle.addChild(rightShoe)
 
+        setupSurfboard()   // added first so it renders behind legs
         addChild(leftShoulder)
         addChild(rightShoulder)
         addChild(leftHip)
         addChild(rightHip)
 
         setStandingPose()
+    }
+
+    private func setupSurfboard() {
+        // Surfboard: leaf shape — pointed at both ends, wider in the middle
+        let path = CGMutablePath()
+        path.move(to: CGPoint(x: -46, y: 0))
+        path.addCurve(to: CGPoint(x: 46, y: 0),
+                      control1: CGPoint(x: -22, y: 10),
+                      control2: CGPoint(x: 22, y: 10))
+        path.addCurve(to: CGPoint(x: -46, y: 0),
+                      control1: CGPoint(x: 22, y: -10),
+                      control2: CGPoint(x: -22, y: -10))
+        path.closeSubpath()
+
+        surfboard.path = path
+        surfboard.fillColor = .white
+        surfboard.strokeColor = SKColor(red: 0.65, green: 0.82, blue: 0.95, alpha: 1.0)
+        surfboard.lineWidth = 2.0
+        // Deck stripe — a thin coloured line down the centre
+        let stripe = SKShapeNode()
+        let stripePath = CGMutablePath()
+        stripePath.move(to: CGPoint(x: -30, y: 0))
+        stripePath.addLine(to: CGPoint(x: 30, y: 0))
+        stripe.path = stripePath
+        stripe.strokeColor = SKColor(red: 0.55, green: 0.75, blue: 0.95, alpha: 0.7)
+        stripe.lineWidth = 2.5
+        stripe.lineCap = .round
+        surfboard.addChild(stripe)
+
+        surfboard.position = CGPoint(x: 0, y: -118)
+        surfboard.zPosition = -1
+        surfboard.isHidden = true
+        addChild(surfboard)
     }
 
     private func makeLimbPath(length: CGFloat) -> CGPath {
@@ -314,6 +351,43 @@ final class PetLimbsNode: SKNode {
 
     func stopWave() {
         rightElbow.removeAction(forKey: "wave")
+    }
+
+    // MARK: - Surfing
+
+    func startSurfing() {
+        isWalking = false
+        removeAction(forKey: "walkCycle")
+        stopJointAnimations()
+
+        surfboard.isHidden = false
+        let popIn = SKAction.sequence([
+            SKAction.scale(to: 0.85, duration: 0),
+            SKAction.scale(to: 1.0, duration: 0.3),
+        ])
+        popIn.timingMode = .easeOut
+        surfboard.run(popIn)
+
+        // Arms spread wide for balance
+        leftShoulder.run(SKAction.rotate(toAngle: 0.88, duration: 0.45))
+        rightShoulder.run(SKAction.rotate(toAngle: -0.88, duration: 0.45))
+        leftElbow.run(SKAction.rotate(toAngle: 0.18, duration: 0.35))
+        rightElbow.run(SKAction.rotate(toAngle: -0.18, duration: 0.35))
+
+        // Knees bent — surf stance
+        leftHip.run(SKAction.rotate(toAngle: 0.14, duration: 0.45))
+        rightHip.run(SKAction.rotate(toAngle: -0.14, duration: 0.45))
+        leftKnee.run(SKAction.rotate(toAngle: 0.40, duration: 0.35))
+        rightKnee.run(SKAction.rotate(toAngle: 0.40, duration: 0.35))
+    }
+
+    func stopSurfing() {
+        let shrink = SKAction.sequence([
+            SKAction.scale(to: 0.0, duration: 0.2),
+            SKAction.run { [weak self] in self?.surfboard.isHidden = true },
+            SKAction.scale(to: 1.0, duration: 0),
+        ])
+        surfboard.run(shrink)
     }
 
     func setSickPose() {
