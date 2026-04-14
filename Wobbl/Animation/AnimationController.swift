@@ -41,7 +41,13 @@ final class AnimationController {
     private func stopAnimations(for state: PetState) {
         scene.effectsNode.stopAll()
         scene.bodyNode.removeAction(forKey: "stateAnim")
+        scene.bodyNode.removeAction(forKey: "breathing")
+        scene.bodyNode.removeAction(forKey: "walkBob")
         scene.bodyNode.run(SKAction.rotate(toAngle: 0, duration: 0.3))
+        scene.bodyNode.run(SKAction.move(to: .zero, duration: 0.2))
+        // Reset scale so breathing/spring can restart cleanly
+        scene.bodyNode.yScale = 1.0
+        scene.bodyNode.xScale = 1.0
     }
 
     // MARK: - Transitions

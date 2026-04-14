@@ -26,5 +26,5 @@ enum ColorPalette {
     static let sweatDrop = SKColor(red: 0.50, green: 0.75, blue: 1.0, alpha: 0.8)
     static let vomitGreen = SKColor(red: 0.45, green: 0.72, blue: 0.30, alpha: 0.9)
     static let starYellow = SKColor(red: 1.0, green: 0.85, blue: 0.20, alpha: 0.9)
-    static let zzzColor = SKColor(red: 0.70, green: 0.65, blue: 0.85, alpha: 0.6)
+    static let zzzColor = SKColor(red: 1.0, green: 0.92, blue: 0.45, alpha: 1.0)
 }

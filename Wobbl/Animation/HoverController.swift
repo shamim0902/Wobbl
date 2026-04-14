@@ -54,11 +54,13 @@ final class HoverController {
             self.window?.ignoresMouseEvents = !self.isHovered
             if self.isHovered {
                 self.idleSleepController?.wakeUp()
+                self.walkingController?.pause()
                 NSCursor.openHand.push()
                 self.scene?.startHoverReaction()
             } else {
                 NSCursor.pop()
                 self.scene?.endHoverReaction()
+                self.walkingController?.resume()
             }
         }
     }

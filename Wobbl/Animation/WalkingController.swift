@@ -118,6 +118,16 @@ final class WalkingController {
 
         currentActivity = next
 
+        // Show reaction text for most activities (~60% chance, with delay)
+        if next != .standing && next != .waving {
+            if Int.random(in: 0..<100) < 60 {
+                let delay = TimeInterval.random(in: 0.4...1.2)
+                DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak scene, next] in
+                    scene?.effectsNode.showReactionText(for: next)
+                }
+            }
+        }
+
         // Set up incoming activity
         switch next {
         case .walking:
@@ -146,7 +156,6 @@ final class WalkingController {
             direction = .standing
             scene.setFacingDirection(.standing)
             scene.limbsNode.setRelaxedSitPose()
-            // Chill face — half-closed eyes, soft smile
             scene.eyesNode.setExpression(.squint)
             scene.mouthNode.setShape(.smile)
             scene.cheeksNode.setBlushIntensity(0.25)
@@ -159,13 +168,6 @@ final class WalkingController {
             direction = .standing
             scene.limbsNode.setStandingPose()
             scene.eyesNode.startLookAround()
-            // ~25% chance to drop a kind word while looking around
-            if Int.random(in: 0..<100) < 25 {
-                let delay = TimeInterval.random(in: 1.5...3.5)
-                DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak scene] in
-                    scene?.effectsNode.showAffirmation()
-                }
-            }
 
         case .waving:
             direction = .standing
@@ -188,7 +190,6 @@ final class WalkingController {
             scene.mouthNode.setShape(.bigSmile)
             scene.cheeksNode.setBlushIntensity(0.7)
             scene.effectsNode.showSparkles()
-            // Spring bounce on body
             scene.bodySquishSpring.value = 0.85
             scene.bodySquishSpring.velocity = 5.0
             scene.bodySquishSpring.target = 1.0
@@ -228,7 +229,6 @@ final class WalkingController {
             scene.limbsNode.setSneezePose()
             scene.eyesNode.setExpression(.squint)
             scene.mouthNode.setShape(.neutral)
-            // Build-up → sneeze after 0.5s
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak scene] in
                 guard let scene = scene else { return }
                 scene.bodyNode.run(SKAction.easedRotate(toAngle: 0.15, duration: 0.1, easing: Easing.easeOutElastic))
@@ -238,7 +238,6 @@ final class WalkingController {
                 scene.eyesNode.setExpression(.closed)
                 scene.mouthNode.setShape(.openWide)
                 scene.effectsNode.showSneezeBurst()
-                // Recovery
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak scene] in
                     scene?.bodyNode.run(SKAction.easedRotate(toAngle: 0, duration: 0.4, easing: { Easing.spring($0, damping: 0.5) }))
                     scene?.eyesNode.setExpression(.normal)

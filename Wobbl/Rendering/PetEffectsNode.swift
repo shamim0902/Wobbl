@@ -6,6 +6,7 @@ final class PetEffectsNode: SKNode {
     private weak var greetingBubble: SKNode?     // tracked separately — survives stopAll()
     private weak var hoverBubble: SKNode?        // same: immune to stopAll()
     private weak var affirmationBubble: SKNode?  // same: immune to stopAll()
+    private weak var reactionBubble: SKNode?     // same: immune to stopAll()
 
     func setup() {
         // Container positioned above the body center
@@ -52,12 +53,12 @@ final class PetEffectsNode: SKNode {
 
         let emitZ = SKAction.run { [weak container] in
             guard let container = container else { return }
-            let z = SKLabelNode(text: "Z")
+            let z = SKLabelNode(text: "💤")
             z.fontName = "Avenir-Heavy"
-            z.fontSize = CGFloat.random(in: 10...16)
+            z.fontSize = CGFloat.random(in: 12...18)
             z.fontColor = ColorPalette.zzzColor
             z.position = .zero
-            z.alpha = 0.8
+            z.alpha = 1.0
             container.addChild(z)
 
             let moveUp = SKAction.moveBy(x: CGFloat.random(in: 5...15), y: 30, duration: 2.0)
@@ -167,6 +168,102 @@ final class PetEffectsNode: SKNode {
             SKAction.fadeOut(withDuration: 0.5),
         ])
         bubble.run(.sequence([popIn, hold, leave, .removeFromParent()]))
+    }
+
+    // MARK: - Reaction Text Bubble
+
+    static let excitedTexts = [
+        "Yay! ✨", "Woohoo!", "So happy! 💖", "Let's gooo!", "Amazing! 🎉",
+        "Best day ever!", "I'm pumped! 💪", "Wheee!", "Yahoo~! 🌟", "Can't stop! 🥳",
+    ]
+    static let shyTexts = [
+        "eep! 😳", "s-sorry~", "don't look!", "shy...", "eeek!",
+        "oh no~ 🙈", "am smol...", "h-hewwo?", "hiding~", "too shy 💕",
+    ]
+    static let curiousTexts = [
+        "hmm? 🤔", "what's that?", "ooh!", "interesting~", "tell me more!",
+        "wait wait!", "lemme see!", "what if... 💭", "oooh~!", "huh? 👀",
+    ]
+    static let yawnTexts = [
+        "*yaaawn*", "five more min~", "so tired~",
+        "can't stay awake~", "big stretch!", "droopy eyes~",
+        "*stretching*", "mmm~ comfy", "need a break~",
+    ]
+    static let sneezeTexts = [
+        "ACHOO! 🤧", "achoo~!", "bless me!", "ugh~ sniffles", "ah-CHOO!",
+        "*sniff sniff*", "allergies?!", "woah!", "that tickled!",
+    ]
+    static let sittingTexts = [
+        "comfy~ 😊", "nice spot!", "just chillin~", "taking a break 🍃",
+        "floor is nice~", "sit with me!", "relaxing~", "ahh, peace~",
+    ]
+    static let relaxedTexts = [
+        "ahh~ 😌", "so chill~", "vibes ✌️", "living the life~", "bliss!",
+        "this is nice~", "no worries~", "zen mode 🧘", "perfectly cozy~",
+    ]
+    static let scratchTexts = [
+        "itchy! 😖", "hmm~", "got an itch!", "scratchy scratch~",
+        "right there~", "ahh better!", "so itchy~!", "can't reach!",
+    ]
+    static let lookAroundTexts = [
+        "what's over there? 👀", "ooh~", "looking around~", "see anything?",
+        "so much to see!", "hmm! 🔍", "over here!", "exploring~",
+    ]
+    static let surfTexts = [
+        "cowabunga! 🏄", "surf's up!", "radical~!", "catch the wave!",
+        "gnarly! 🌊", "hang ten!", "wooo! 🤙", "riding waves~", "surfer dude!",
+    ]
+    static let walkTexts = [
+        "strolling~ 🚶", "off I go!", "walking around~", "la la la~",
+        "on my way!", "adventure! 🌈", "step step step~", "exploring!",
+    ]
+
+    /// Shows a text bubble for any reaction — auto-dismisses after ~2.2s.
+    func showReactionText(_ text: String) {
+        reactionBubble?.removeAllActions()
+        reactionBubble?.removeFromParent()
+        reactionBubble = nil
+
+        let bubble = makeSpeechBubble(text: text)
+        bubble.position = CGPoint(x: 10, y: 74)
+        bubble.alpha = 0
+        bubble.setScale(0.1)
+        addChild(bubble)
+        reactionBubble = bubble
+
+        let popIn = SKAction.group([
+            SKAction.fadeIn(withDuration: 0.14),
+            SKAction.scale(to: 1.0, duration: 0.2),
+        ])
+        let hold = SKAction.wait(forDuration: 2.2)
+        let leave = SKAction.group([
+            SKAction.moveBy(x: 0, y: 10, duration: 0.5),
+            SKAction.fadeOut(withDuration: 0.5),
+        ])
+        let cleanup = SKAction.run { [weak self] in self?.reactionBubble = nil }
+        bubble.run(.sequence([popIn, hold, leave, .removeFromParent(), cleanup]))
+    }
+
+    /// Shows a random text for the given activity.
+    func showReactionText(for activity: PetActivity) {
+        let pool: [String]
+        switch activity {
+        case .excited:       pool = Self.excitedTexts
+        case .shy:           pool = Self.shyTexts
+        case .curious:       pool = Self.curiousTexts
+        case .yawning:       pool = Self.yawnTexts
+        case .sneezing:      pool = Self.sneezeTexts
+        case .sitting:       pool = Self.sittingTexts
+        case .relaxedSitting:pool = Self.relaxedTexts
+        case .scratchingHead:pool = Self.scratchTexts
+        case .lookingAround: pool = Self.lookAroundTexts
+        case .surfing:       pool = Self.surfTexts
+        case .walking:       pool = Self.walkTexts
+        default: return
+        }
+        if let text = pool.randomElement() {
+            showReactionText(text)
+        }
     }
 
     // MARK: - Greeting Bubble
@@ -330,8 +427,41 @@ final class PetEffectsNode: SKNode {
     // MARK: - Hover Bubble
 
     private static let hoverTexts = [
-        "uwu ♥", "hehe~", "eep!", "owo", "squish!", "hiii!", "teehee~", "✨", "so soft~", "omg hi"
+        "uwu ♥", "hehe~", "eep!", "owo", "squish!", "hiii!", "teehee~", "✨", "so soft~", "omg hi",
+        "pet me more! 💕", "yesss~ 😊", "that feels nice!", "purrrr~", "don't stop!",
+        "I love pets! 💖", "right there~!", "so gentle! 🥰", "happy happy!", "more pls~",
+        "best human! 💜", "cozy vibes~", "mmmm~ 💗", "love this!", "heaven~ ✨",
     ]
+
+    // MARK: - Love Particles (hearts floating up during petting)
+
+    func showLoveParticles() {
+        for _ in 0..<3 {
+            let heart = SKLabelNode(text: "♥")
+            heart.fontName = "Avenir-Heavy"
+            heart.fontSize = CGFloat.random(in: 10...16)
+            heart.fontColor = SKColor(red: 1.0, green: 0.45, blue: 0.65, alpha: 0.9)
+            heart.position = CGPoint(
+                x: CGFloat.random(in: -25...25),
+                y: CGFloat.random(in: 20...45)
+            )
+            heart.alpha = 0
+            heart.setScale(0.3)
+            addChild(heart)
+
+            let floatUp = SKAction.moveBy(x: CGFloat.random(in: -12...12), y: CGFloat.random(in: 25...45), duration: 1.2)
+            floatUp.timingMode = .easeOut
+            let fadeIn = SKAction.fadeAlpha(to: 0.9, duration: 0.2)
+            let hold = SKAction.wait(forDuration: 0.5)
+            let fadeOut = SKAction.fadeOut(withDuration: 0.5)
+            let grow = SKAction.easedScale(to: 1.0, duration: 0.4, easing: Easing.easeOutBack)
+            heart.run(.sequence([
+                .group([fadeIn, grow]),
+                .group([floatUp, .sequence([hold, fadeOut])]),
+                .removeFromParent(),
+            ]))
+        }
+    }
 
     func showHoverBubble() {
         // Dismiss any existing hover bubble without animation
