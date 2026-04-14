@@ -259,12 +259,101 @@ final class PetEffectsNode: SKNode {
         case .lookingAround: pool = Self.lookAroundTexts
         case .surfing:       pool = Self.surfTexts
         case .walking:       pool = Self.walkTexts
+        case .eating:        pool = Self.eatingTexts
         default: return
         }
         if let text = pool.randomElement() {
             showReactionText(text)
         }
     }
+
+    // MARK: - Eating Burger
+
+    private weak var burgerNode: SKNode?
+
+    /// Mouth position in effectsNode space (bodyNode is at 0,0 in characterContainer;
+    /// mouth is at y=-14 in bodyNode; effectsNode is also at 0,0 in characterContainer).
+    private let mouthY: CGFloat = -14
+
+    func showBurger() {
+        burgerNode?.removeFromParent()
+        let burger = SKLabelNode(text: "🍔")
+        burger.fontSize = 32
+        burger.position = CGPoint(x: 0, y: 70)
+        burger.alpha = 0
+        burger.setScale(0.3)
+        addChild(burger)
+        burgerNode = burger
+
+        // Burger drops from above into the mouth
+        let dropToMouth = SKAction.moveTo(y: mouthY + 8, duration: 0.5)
+        dropToMouth.timingMode = .easeIn
+        let popIn = SKAction.group([
+            SKAction.fadeIn(withDuration: 0.15),
+            SKAction.easedScale(to: 1.0, duration: 0.4, easing: Easing.easeOutBounce),
+            dropToMouth,
+        ])
+        burger.run(popIn)
+    }
+
+    func animateEatingBites(biteCount: Int = 4, completion: @escaping () -> Void) {
+        guard let burger = burgerNode else { completion(); return }
+
+        var bites: [SKAction] = []
+        for i in 0..<biteCount {
+            let progress = CGFloat(i + 1) / CGFloat(biteCount)
+            let targetScale = max(1.0 - progress * 0.9, 0.1)
+            // Each bite: burger shrinks + moves closer into mouth
+            let biteY = mouthY + 8 - CGFloat(i) * 3  // sinks deeper each bite
+            let bite = SKAction.sequence([
+                SKAction.group([
+                    SKAction.easedScale(to: targetScale, duration: 0.2, easing: Easing.easeOutBack),
+                    SKAction.moveTo(y: biteY, duration: 0.15),
+                    // Chomp wiggle
+                    SKAction.sequence([
+                        SKAction.moveBy(x: 2, y: -1, duration: 0.04),
+                        SKAction.moveBy(x: -4, y: 2, duration: 0.04),
+                        SKAction.moveBy(x: 2, y: -1, duration: 0.04),
+                    ]),
+                ]),
+                SKAction.wait(forDuration: TimeInterval.random(in: 0.5...0.8)),
+            ])
+            bites.append(bite)
+        }
+
+        // Final bite: burger shrinks to nothing right at the mouth and disappears
+        let finish = SKAction.sequence([
+            SKAction.group([
+                SKAction.scale(to: 0.0, duration: 0.12),
+                SKAction.fadeOut(withDuration: 0.12),
+                SKAction.moveTo(y: mouthY, duration: 0.12),
+            ]),
+            SKAction.removeFromParent(),
+            SKAction.run { [weak self] in
+                self?.burgerNode = nil
+                completion()
+            },
+        ])
+        bites.append(finish)
+        burger.run(.sequence(bites))
+    }
+
+    func removeBurger() {
+        burgerNode?.removeAllActions()
+        burgerNode?.removeFromParent()
+        burgerNode = nil
+    }
+
+    static let eatingTexts = [
+        "yummy! 🍔", "nom nom nom~", "so good!", "big bite!",
+        "delicious! 😋", "mmmm~!", "best burger!", "chomp chomp!",
+        "hungry! 🤤", "more pls~", "om nom! ✨", "tasty~!",
+    ]
+    static let fullTexts = [
+        "so full~ 😊", "food coma!", "that was good!", "*burp*",
+        "belly full! 🫃", "happy tummy~", "couldn't eat more!",
+        "satisfied! ✨", "fluffy now~", "round boi 😌",
+    ]
 
     // MARK: - Greeting Bubble
 
@@ -298,45 +387,13 @@ final class PetEffectsNode: SKNode {
     }
 
     private func makeSpeechBubble(text: String) -> SKNode {
-        let container = SKNode()
-
-        // Bubble body
-        let bw: CGFloat = 74
-        let bh: CGFloat = 28
-        let bodyRect = CGRect(x: -bw / 2, y: 0, width: bw, height: bh)
-        let bodyPath = CGPath(
-            roundedRect: bodyRect,
-            cornerWidth: 8, cornerHeight: 8, transform: nil
+        return makeAutoSizedBubble(
+            text: text,
+            fillColor: .white,
+            strokeColor: ColorPalette.normalStroke,
+            fontColor: ColorPalette.pupil,
+            fontSize: 12
         )
-        let body = SKShapeNode(path: bodyPath)
-        body.fillColor = SKColor.white
-        body.strokeColor = ColorPalette.normalStroke
-        body.lineWidth = 1.8
-
-        // Tail pointing toward the body (down-left)
-        let tailPath = CGMutablePath()
-        tailPath.move(to: CGPoint(x: -10, y: 0))
-        tailPath.addLine(to: CGPoint(x: -18, y: -11))
-        tailPath.addLine(to: CGPoint(x: -2, y: 0))
-        tailPath.closeSubpath()
-        let tail = SKShapeNode(path: tailPath)
-        tail.fillColor = SKColor.white
-        tail.strokeColor = ColorPalette.normalStroke
-        tail.lineWidth = 1.5
-
-        // Label — draw body first so label sits on top
-        let label = SKLabelNode(text: text)
-        label.fontName = "Avenir-Heavy"
-        label.fontSize = 12
-        label.fontColor = ColorPalette.pupil
-        label.verticalAlignmentMode = .center
-        label.horizontalAlignmentMode = .center
-        label.position = CGPoint(x: 0, y: bh / 2)
-
-        container.addChild(tail)
-        container.addChild(body)
-        container.addChild(label)
-        return container
     }
 
     // MARK: - Affirmation Bubble
@@ -385,43 +442,13 @@ final class PetEffectsNode: SKNode {
     }
 
     private func makeAffirmationBubble(text: String) -> SKNode {
-        let container = SKNode()
-
-        let bw: CGFloat = 116
-        let bh: CGFloat = 28
-        let softMint = SKColor(red: 0.82, green: 0.96, blue: 0.88, alpha: 0.95)
-
-        let bodyPath = CGPath(
-            roundedRect: CGRect(x: -bw / 2, y: 0, width: bw, height: bh),
-            cornerWidth: 9, cornerHeight: 9, transform: nil
+        return makeAutoSizedBubble(
+            text: text,
+            fillColor: SKColor(red: 0.82, green: 0.96, blue: 0.88, alpha: 0.95),
+            strokeColor: SKColor(red: 0.45, green: 0.75, blue: 0.60, alpha: 1.0),
+            fontColor: SKColor(red: 0.15, green: 0.40, blue: 0.30, alpha: 1.0),
+            fontSize: 11
         )
-        let body = SKShapeNode(path: bodyPath)
-        body.fillColor = softMint
-        body.strokeColor = SKColor(red: 0.45, green: 0.75, blue: 0.60, alpha: 1.0)
-        body.lineWidth = 1.6
-
-        let tailPath = CGMutablePath()
-        tailPath.move(to: CGPoint(x: -6, y: 0))
-        tailPath.addLine(to: CGPoint(x: -14, y: -10))
-        tailPath.addLine(to: CGPoint(x: 4, y: 0))
-        tailPath.closeSubpath()
-        let tail = SKShapeNode(path: tailPath)
-        tail.fillColor = softMint
-        tail.strokeColor = SKColor(red: 0.45, green: 0.75, blue: 0.60, alpha: 1.0)
-        tail.lineWidth = 1.4
-
-        let label = SKLabelNode(text: text)
-        label.fontName = "Avenir-Heavy"
-        label.fontSize = 11
-        label.fontColor = SKColor(red: 0.15, green: 0.40, blue: 0.30, alpha: 1.0)
-        label.verticalAlignmentMode = .center
-        label.horizontalAlignmentMode = .center
-        label.position = CGPoint(x: 0, y: bh / 2)
-
-        container.addChild(tail)
-        container.addChild(body)
-        container.addChild(label)
-        return container
     }
 
     // MARK: - Hover Bubble
@@ -496,40 +523,58 @@ final class PetEffectsNode: SKNode {
     }
 
     private func makeHoverBubble(text: String) -> SKNode {
+        return makeAutoSizedBubble(
+            text: text,
+            fillColor: ColorPalette.normalBody.withAlphaComponent(0.92),
+            strokeColor: ColorPalette.normalStroke,
+            fontColor: ColorPalette.pupil,
+            fontSize: 12
+        )
+    }
+
+    // MARK: - Auto-Sized Bubble (shared)
+
+    private func makeAutoSizedBubble(
+        text: String,
+        fillColor: SKColor,
+        strokeColor: SKColor,
+        fontColor: SKColor,
+        fontSize: CGFloat
+    ) -> SKNode {
         let container = SKNode()
 
-        let bw: CGFloat = 82
-        let bh: CGFloat = 28
+        // Measure text width
+        let label = SKLabelNode(text: text)
+        label.fontName = "Avenir-Heavy"
+        label.fontSize = fontSize
+        label.fontColor = fontColor
+        label.verticalAlignmentMode = .center
+        label.horizontalAlignmentMode = .center
 
-        // Soft lavender fill — matches Wobbl's colour palette
-        let bubbleFill = ColorPalette.normalBody.withAlphaComponent(0.92)
+        let textWidth = label.frame.width
+        let bw = max(textWidth + 20, 50)  // 10px padding each side, min 50
+        let bh: CGFloat = 28
 
         let bodyPath = CGPath(
             roundedRect: CGRect(x: -bw / 2, y: 0, width: bw, height: bh),
-            cornerWidth: 10, cornerHeight: 10, transform: nil
+            cornerWidth: 9, cornerHeight: 9, transform: nil
         )
         let body = SKShapeNode(path: bodyPath)
-        body.fillColor = bubbleFill
-        body.strokeColor = ColorPalette.normalStroke
+        body.fillColor = fillColor
+        body.strokeColor = strokeColor
         body.lineWidth = 1.6
 
-        // Tail pointing down-right (toward character body)
+        // Tail pointing down-left toward body
         let tailPath = CGMutablePath()
-        tailPath.move(to: CGPoint(x: 8,  y: 0))
-        tailPath.addLine(to: CGPoint(x: 16, y: -11))
-        tailPath.addLine(to: CGPoint(x: 22, y: 0))
+        tailPath.move(to: CGPoint(x: -8, y: 0))
+        tailPath.addLine(to: CGPoint(x: -16, y: -10))
+        tailPath.addLine(to: CGPoint(x: 0, y: 0))
         tailPath.closeSubpath()
         let tail = SKShapeNode(path: tailPath)
-        tail.fillColor = bubbleFill
-        tail.strokeColor = ColorPalette.normalStroke
+        tail.fillColor = fillColor
+        tail.strokeColor = strokeColor
         tail.lineWidth = 1.4
 
-        let label = SKLabelNode(text: text)
-        label.fontName = "Avenir-Heavy"
-        label.fontSize = 12
-        label.fontColor = ColorPalette.pupil
-        label.verticalAlignmentMode = .center
-        label.horizontalAlignmentMode = .center
         label.position = CGPoint(x: 0, y: bh / 2)
 
         container.addChild(tail)

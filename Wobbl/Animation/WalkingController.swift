@@ -19,6 +19,7 @@ enum PetActivity {
     case curious
     case yawning
     case sneezing
+    case eating
 }
 
 /// Drives all of Wobbl's idle behaviour — walking, sitting, scratching, and looking around.
@@ -112,6 +113,12 @@ final class WalkingController {
             scene.eyesNode.setExpression(.normal)
             scene.eyesNode.startBlinking()
             scene.mouthNode.setShape(.smile)
+        case .eating:
+            scene.bodyNode.removeAction(forKey: "chewing")
+            scene.effectsNode.removeBurger()
+            scene.eyesNode.setExpression(.normal)
+            scene.eyesNode.startBlinking()
+            scene.cheeksNode.setBlushIntensity(0.3)
         default:
             break
         }
@@ -245,28 +252,79 @@ final class WalkingController {
                     scene?.mouthNode.setShape(.smile)
                 }
             }
+
+        case .eating:
+            direction = .standing
+            scene.setFacingDirection(.standing)
+            scene.limbsNode.setEatingPose()
+            scene.eyesNode.setExpression(.wide)
+            scene.mouthNode.setShape(.chomp)
+            scene.effectsNode.showBurger()
+            // Show eating text
+            if let text = PetEffectsNode.eatingTexts.randomElement() {
+                scene.effectsNode.showReactionText(text)
+            }
+            // Start chomping after arms reach mouth
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak scene] in
+                guard let scene = scene else { return }
+                // Chewing face — mouth opens and closes
+                let chew = SKAction.sequence([
+                    SKAction.run { scene.mouthNode.setShape(.chomp, animated: false) },
+                    SKAction.wait(forDuration: 0.22),
+                    SKAction.run { scene.mouthNode.setShape(.openSmall, animated: false) },
+                    SKAction.wait(forDuration: 0.15),
+                ])
+                scene.bodyNode.run(.repeatForever(chew), withKey: "chewing")
+                // Eyes go squinty — enjoying the food
+                scene.eyesNode.setExpression(.squint)
+                scene.cheeksNode.setBlushIntensity(0.5)
+
+                // Animate bite-by-bite burger shrink
+                scene.effectsNode.animateEatingBites(biteCount: 4) {
+                    // Eating done — fluffy full expression
+                    scene.bodyNode.removeAction(forKey: "chewing")
+                    scene.mouthNode.setShape(.bigSmile)
+                    scene.eyesNode.setExpression(.closed)
+                    scene.cheeksNode.setBlushIntensity(0.8)
+                    scene.limbsNode.setFullPose()
+                    // Satisfied body puff — spring expands then settles
+                    scene.bodySquishSpring.value = 1.12
+                    scene.bodySquishSpring.velocity = -1.0
+                    scene.bodySquishSpring.target = 1.0
+                    // Show full text
+                    if let text = PetEffectsNode.fullTexts.randomElement() {
+                        scene.effectsNode.showReactionText(text)
+                    }
+                    // Reopen eyes after a happy moment
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak scene] in
+                        scene?.eyesNode.setExpression(.squint)
+                        scene?.eyesNode.startBlinking()
+                    }
+                }
+            }
         }
     }
 
     // MARK: - Activity Selection
 
     private func pickNextActivity() -> PetActivity {
-        // walk 12%, stand 8%, sit 8%, relaxedSit 10%, scratch 8%, look 8%,
-        // wave 8%, surf 15%, excited 5%, shy 4%, curious 5%, yawn 4%, sneeze 5%
+        // walk 12%, stand 7%, sit 7%, relaxedSit 9%, scratch 7%, look 7%,
+        // wave 7%, surf 13%, excited 5%, shy 4%, curious 5%, yawn 3%, sneeze 4%, eating 10%
         switch Int.random(in: 0..<100) {
         case 0..<12:  return .walking
-        case 12..<20: return .standing
-        case 20..<28: return .sitting
-        case 28..<38: return .relaxedSitting
-        case 38..<46: return .scratchingHead
-        case 46..<54: return .lookingAround
-        case 54..<62: return .waving
-        case 62..<77: return .surfing
-        case 77..<82: return .excited
-        case 82..<86: return .shy
-        case 86..<91: return .curious
-        case 91..<95: return .yawning
-        default:      return .sneezing
+        case 12..<19: return .standing
+        case 19..<26: return .sitting
+        case 26..<35: return .relaxedSitting
+        case 35..<42: return .scratchingHead
+        case 42..<49: return .lookingAround
+        case 49..<56: return .waving
+        case 56..<69: return .surfing
+        case 69..<74: return .excited
+        case 74..<78: return .shy
+        case 78..<83: return .curious
+        case 83..<86: return .yawning
+        case 86..<90: return .sneezing
+        default:      return .eating
         }
     }
 
@@ -285,6 +343,7 @@ final class WalkingController {
         case .curious:        return TimeInterval.random(in: 3.0...6.0)
         case .yawning:        return TimeInterval.random(in: 4.0...5.5)
         case .sneezing:       return TimeInterval.random(in: 2.0...3.0)
+        case .eating:         return TimeInterval.random(in: 7.0...10.0)
         }
     }
 
@@ -306,6 +365,9 @@ final class WalkingController {
             scene.limbsNode.removeAction(forKey: "yawnSequence")
         case .sneezing:
             scene.bodyNode.run(SKAction.rotate(toAngle: 0, duration: 0.2))
+        case .eating:
+            scene.bodyNode.removeAction(forKey: "chewing")
+            scene.effectsNode.removeBurger()
         case .relaxedSitting:
             scene.eyesNode.setExpression(.normal)
             scene.mouthNode.setShape(.neutral)

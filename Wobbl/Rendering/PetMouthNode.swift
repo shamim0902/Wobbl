@@ -7,6 +7,7 @@ enum MouthShape {
     case frown
     case openSmall   // surprise
     case openWide    // vomit
+    case chomp       // huge mouth for eating burger
     case yawn        // tall oval for yawning
     case wavy        // sick/nauseous
     case pant        // hot - alternating open/close
@@ -70,6 +71,9 @@ final class PetMouthNode: SKShapeNode {
         case .openWide:
             p.addEllipse(in: CGRect(x: -8, y: -6, width: 16, height: 12))
 
+        case .chomp:
+            p.addEllipse(in: CGRect(x: -13, y: -10, width: 26, height: 20))
+
         case .yawn:
             p.addEllipse(in: CGRect(x: -7, y: -8, width: 14, height: 16))
 
@@ -90,7 +94,7 @@ final class PetMouthNode: SKShapeNode {
 
     private func fillColorFor(_ shape: MouthShape) -> SKColor {
         switch shape {
-        case .openSmall, .openWide, .yawn, .pant:
+        case .openSmall, .openWide, .chomp, .yawn, .pant:
             return ColorPalette.mouth
         default:
             return .clear

@@ -53,6 +53,9 @@ final class HoverController {
             guard let self = self else { return }
             self.window?.ignoresMouseEvents = !self.isHovered
             if self.isHovered {
+                // Ensure window is floating, key, and on top so drag works
+                self.window?.level = .floating
+                self.window?.makeKeyAndOrderFront(nil)
                 self.idleSleepController?.wakeUp()
                 self.walkingController?.pause()
                 NSCursor.openHand.push()

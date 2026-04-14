@@ -647,6 +647,28 @@ final class PetLimbsNode: SKNode {
         shyPeekWorkItem = nil
     }
 
+    // MARK: - Eating
+
+    func setEatingPose() {
+        isWalking = false
+        removeAction(forKey: "walkCycle")
+        stopJointAnimations()
+
+        // Both arms raised to mouth level — holding the burger
+        leftShoulder.run(SKAction.easedRotate(toAngle: -1.5, duration: 0.4, easing: Easing.easeOutBack))
+        rightShoulder.run(SKAction.easedRotate(toAngle: 1.5, duration: 0.4, easing: Easing.easeOutBack))
+        leftElbow.run(SKAction.rotate(toAngle: -1.0, duration: 0.35))
+        rightElbow.run(SKAction.rotate(toAngle: 1.0, duration: 0.35))
+    }
+
+    func setFullPose() {
+        // Both hands come up to mouth — wiping/holding cheeks in satisfaction
+        leftShoulder.run(SKAction.easedRotate(toAngle: -1.4, duration: 0.45, easing: Easing.easeOutBack))
+        rightShoulder.run(SKAction.easedRotate(toAngle: 1.4, duration: 0.45, easing: Easing.easeOutBack))
+        leftElbow.run(SKAction.rotate(toAngle: -0.9, duration: 0.35))
+        rightElbow.run(SKAction.rotate(toAngle: 0.9, duration: 0.35))
+    }
+
     // MARK: - Curious Tilt
 
     func setCuriousPose() {

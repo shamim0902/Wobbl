@@ -74,7 +74,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             y: screenFrame.maxY // Just above the top of the screen
         )
 
-        petWindow = NSWindow(
+        petWindow = PetWindow(
             contentRect: NSRect(origin: origin, size: windowSize),
             styleMask: [.borderless],
             backing: .buffered,
